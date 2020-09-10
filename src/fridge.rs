@@ -65,6 +65,7 @@ impl Actor for Fridge {
 }
 
 impl Receive<Readings> for Fridge {
+    type Msg = FridgeMsg; // cruft
     fn receive(&mut self,
                 ctx: &Context<Self::Msg>,
                 r: Readings,
@@ -81,6 +82,7 @@ impl Receive<Readings> for Fridge {
 }
 
 impl Receive<Params> for Fridge {
+    type Msg = FridgeMsg; // cruft
     fn receive(&mut self,
                 ctx: &Context<Self::Msg>,
                 p: Params,
@@ -93,6 +95,7 @@ impl Receive<Params> for Fridge {
 }
 
 impl Receive<Tick> for Fridge {
+    type Msg = FridgeMsg; // cruft
     fn receive(&mut self,
                 ctx: &Context<Self::Msg>,
                 _tick: Tick,
@@ -102,6 +105,7 @@ impl Receive<Tick> for Fridge {
 }
 
 impl Receive<GetOffTime> for Fridge {
+    type Msg = FridgeMsg; // cruft
     fn receive(&mut self,
                 ctx: &Context<Self::Msg>,
                 _: GetOffTime,

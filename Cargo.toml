@@ -28,9 +28,10 @@ anyhow = "1.0"
 sysfs_gpio = "0.5"
 futures = "0.3"
 
-# tide must match version used in tide-rustls
-tide = "0.12"
-tide-rustls = "0.1"
+# tide must match version used in tide-rustls, so have strict versions here
+tide = "0.13.0"
+tide-rustls = "0.1.2"
+
 async-std = { version = "1.6", features = ["attributes"] }
 askama_tide = "0.10"
 askama = { version = "0.10", features = ["serde-json", "with-tide"] }

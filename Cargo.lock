@@ -1139,16 +1139,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "logtest"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb3e43a8657c1d64516dcc9db8ca03826a4aceaf89d5ce1b37b59f6ff0e43026"
-dependencies = [
- "lazy_static",
- "log",
-]
-
-[[package]]
 name = "matches"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2089,27 +2079,6 @@ dependencies = [
 
 [[package]]
 name = "tide"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34d10b7fd81fa0a75b30538de52f2e1c07c57327f2499edcfc4874e7f9963ff0"
-dependencies = [
- "async-h1",
- "async-sse 4.0.0",
- "async-std",
- "async-trait",
- "femme",
- "futures-util",
- "http-types",
- "kv-log-macro",
- "logtest",
- "pin-project-lite",
- "route-recognizer 0.2.0",
- "serde 1.0.115",
- "serde_json",
-]
-
-[[package]]
-name = "tide"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7c4c4e35f5a89ed08cbb59b6e4e1d648e563d6f8daa804002f3557d11d3c8f9"
@@ -2486,7 +2455,7 @@ dependencies = [
  "slog-term",
  "structopt",
  "sysfs_gpio",
- "tide 0.12.0",
+ "tide 0.13.0",
  "tide-rustls",
 ]
 
