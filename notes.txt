@@ -1,0 +1,42 @@
+fridge
+- called on external param change
+- called on external reading change
+- called on integrator timeout
+- called on slowstart timeout
+
+sensor
+- emits readings
+- threadpool to read sensors
+
+sender
+- called on timeout
+
+configwaiter
+- emits params
+- called on http response
+- called on new longpoll
+- possibly takes old/existing params
+
+---
+
+Build for rpi2 which is armv6 (not armv7)
+
+Is installed with raspbian, so use
+--target arm-unknown-linux-musleabihf
+
+This should work but +- glibc versions...
+--target arm-unknown-linux-gnueabi
+
+~/.cargo/config
+[target.arm-unknown-linux-gnueabi]
+linker = "arm-linux-gnueabi-gcc"
+
+[target.arm-unknown-linux-musleabihf]
+linker = "arm-linux-gnueabi-gcc"
+
+apt install gcc-arm-linux-gnueabi gcc-arm-linux-gnueabihf
+
+# ring hardcodes a different compiler name
+ln -s /usr/bin/arm-linux-gnueabihf-gcc ~/bin/arm-linux-musleabihf-gcc
+ln -s /usr/bin/arm-linux-gnueabi-gcc ~/bin/arm-linux-musleabi-gcc
+

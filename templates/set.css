@@ -1,0 +1,78 @@
+span.no_selection {
+    -webkit-user-select: none; // webkit (safari, chrome) browsers
+    -moz-user-select: none; // mozilla browsers
+    -khtml-user-select: none; // webkit (konqueror) browsers
+}
+
+body {
+    font-family: sans-serif;
+}
+
+a {
+    color: #000;
+}
+
+input {
+    border: 2px solid transparent;
+    border-radius: 4px;
+    background-color: white;
+    border-color: black;
+    padding: 0;
+    font-size: 30pt;
+    height: 34pt;
+    vertical-align: middle;
+    line-height: 1em;
+}
+
+input[type="button"] {
+    width: 34pt;
+    margin-left: 4pt;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background:#fff;
+}
+
+input[type="submit"] {
+    margin-top: 1em;
+    align: center;
+    width: 10em;
+}
+
+input[type="text"], input[type="number"] {
+    text-align: center;
+    width: 4em;
+}
+
+#savebox {
+    vertical-align: center;
+    width: 100%;
+}
+
+input[type="button"].onbutton {
+    background: #ccc;
+}
+
+input[type="button"].yesno {
+    width: 2.5em;
+}
+
+input[type="button"]#savebutton {
+    width: 5em;
+}
+
+.modified {
+    color: #d00;
+    font-weight: bold;
+}
+
+.existing {
+    margin-top: 10pt;
+}
+
+span.inputrow {
+    //vertical-align: center;
+}
+
+#mailauth {
+    display: none;
+}
