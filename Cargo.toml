@@ -1,9 +1,8 @@
 [package]
-name = "wort-templog"
+name = "fridgyeast"
 version = "0.1.0"
 authors = ["Matt Johnston <matt@ucc.asn.au>"]
 edition = "2018"
-default-run = "wort-templog"
 
 #[patch.crates-io]
 #riker = { path = "/Users/matt/src/riker" }
@@ -33,8 +32,11 @@ tide = "0.13.0"
 tide-rustls = "0.1.2"
 
 async-std = { version = "1.6", features = ["attributes"] }
-askama_tide = "0.10"
-askama = { version = "0.10", features = ["serde-json", "with-tide"] }
+askama_tide = { git = "https://github.com/djc/askama", rev="a94835d6de0add5f9fd6095bbe96525d8ac2579a" }
+askama = { git = "https://github.com/djc/askama", rev="a94835d6de0add5f9fd6095bbe96525d8ac2579a", features = ["serde-json", "with-tide"] }
+# askama depends on tide version too
+#askama_tide = "0.10"
+#askama = { version = "0.10", features = ["serde-json", "with-tide"] }
 
 
 [profile.release]

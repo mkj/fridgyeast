@@ -114,8 +114,7 @@ checksum = "cff77d8686867eceff3105329d4698d96c2391c176d5d03adc90c7389162b5b8"
 [[package]]
 name = "askama"
 version = "0.10.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70a6e7ebd44d0047fd48206c83c5cd3214acc7b9d87f001da170145c47ef7d12"
+source = "git+https://github.com/djc/askama?rev=a94835d6de0add5f9fd6095bbe96525d8ac2579a#a94835d6de0add5f9fd6095bbe96525d8ac2579a"
 dependencies = [
  "askama_derive",
  "askama_escape",
@@ -125,8 +124,7 @@ dependencies = [
 [[package]]
 name = "askama_derive"
 version = "0.10.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1d7169690c4f56343dcd821ab834972a22570a2662a19a84fd7775d5e1c3881"
+source = "git+https://github.com/djc/askama?rev=a94835d6de0add5f9fd6095bbe96525d8ac2579a#a94835d6de0add5f9fd6095bbe96525d8ac2579a"
 dependencies = [
  "askama_shared",
  "proc-macro2 1.0.21",
@@ -137,14 +135,12 @@ dependencies = [
 [[package]]
 name = "askama_escape"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90c108c1a94380c89d2215d0ac54ce09796823cca0fd91b299cfff3b33e346fb"
+source = "git+https://github.com/djc/askama?rev=a94835d6de0add5f9fd6095bbe96525d8ac2579a#a94835d6de0add5f9fd6095bbe96525d8ac2579a"
 
 [[package]]
 name = "askama_shared"
 version = "0.10.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62fc272363345c8cdc030e4c259d9d028237f8b057dc9bb327772a257bde6bb5"
+source = "git+https://github.com/djc/askama?rev=a94835d6de0add5f9fd6095bbe96525d8ac2579a#a94835d6de0add5f9fd6095bbe96525d8ac2579a"
 dependencies = [
  "askama_escape",
  "humansize",
@@ -162,12 +158,11 @@ dependencies = [
 [[package]]
 name = "askama_tide"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26a1b8bd783141bf3b40ae175244d23b9fea08bd3ec2e862d01c9da0863b6444"
+source = "git+https://github.com/djc/askama?rev=a94835d6de0add5f9fd6095bbe96525d8ac2579a#a94835d6de0add5f9fd6095bbe96525d8ac2579a"
 dependencies = [
  "askama",
  "async-std",
- "tide 0.11.0",
+ "tide",
 ]
 
 [[package]]
@@ -278,19 +273,6 @@ dependencies = [
  "serde 1.0.115",
  "serde_json",
  "sha2",
-]
-
-[[package]]
-name = "async-sse"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aff0a3074c2c3cfd76417f6e03d5c99822d3ef37387af891e4a8bf46447ca870"
-dependencies = [
- "async-std",
- "http-types",
- "log",
- "memchr",
- "pin-project-lite",
 ]
 
 [[package]]
@@ -800,6 +782,34 @@ dependencies = [
  "serde_json",
  "wasm-bindgen",
  "web-sys",
+]
+
+[[package]]
+name = "fridgyeast"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "askama",
+ "askama_tide",
+ "async-std",
+ "atomicwrites",
+ "chrono",
+ "config",
+ "futures",
+ "lazy_static",
+ "rand 0.7.3",
+ "regex",
+ "riker",
+ "riker-patterns",
+ "serde 1.0.115",
+ "serde_json",
+ "slog",
+ "slog-scope",
+ "slog-term",
+ "structopt",
+ "sysfs_gpio",
+ "tide",
+ "tide-rustls",
 ]
 
 [[package]]
@@ -1603,12 +1613,6 @@ dependencies = [
 
 [[package]]
 name = "route-recognizer"
-version = "0.1.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea509065eb0b3c446acdd0102f0d46567dc30902dc0be91d6552035d92b0f4f8"
-
-[[package]]
-name = "route-recognizer"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56770675ebc04927ded3e60633437841581c285dc6236109ea25fbf3beb7b59e"
@@ -2062,30 +2066,13 @@ dependencies = [
 
 [[package]]
 name = "tide"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "151b07f369a9152c2f93715ea0db8a7f7e2533bd2e52fbff1ea5bad7a88db541"
-dependencies = [
- "async-h1",
- "async-sse 3.0.0",
- "async-std",
- "femme",
- "http-types",
- "kv-log-macro",
- "route-recognizer 0.1.13",
- "serde 1.0.115",
- "serde_json",
-]
-
-[[package]]
-name = "tide"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7c4c4e35f5a89ed08cbb59b6e4e1d648e563d6f8daa804002f3557d11d3c8f9"
 dependencies = [
  "async-h1",
  "async-session",
- "async-sse 4.0.0",
+ "async-sse",
  "async-std",
  "async-trait",
  "femme",
@@ -2093,7 +2080,7 @@ dependencies = [
  "http-types",
  "kv-log-macro",
  "pin-project-lite",
- "route-recognizer 0.2.0",
+ "route-recognizer",
  "serde 1.0.115",
  "serde_json",
 ]
@@ -2109,7 +2096,7 @@ dependencies = [
  "async-std",
  "async-tls",
  "rustls",
- "tide 0.13.0",
+ "tide",
 ]
 
 [[package]]
@@ -2430,34 +2417,6 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
-
-[[package]]
-name = "wort-templog"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "askama",
- "askama_tide",
- "async-std",
- "atomicwrites",
- "chrono",
- "config",
- "futures",
- "lazy_static",
- "rand 0.7.3",
- "regex",
- "riker",
- "riker-patterns",
- "serde 1.0.115",
- "serde_json",
- "slog",
- "slog-scope",
- "slog-term",
- "structopt",
- "sysfs_gpio",
- "tide 0.13.0",
- "tide-rustls",
-]
 
 [[package]]
 name = "yaml-rust"

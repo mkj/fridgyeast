@@ -20,9 +20,9 @@ use super::types::*;
 pub struct Tick;
 
 #[derive(Debug,Clone)]
-pub struct GetOffTime;
+pub struct GetParams;
 
-#[actor(Params, Tick, Readings, GetOffTime)]
+#[actor(Params, Tick, Readings, GetParams)]
 pub struct Fridge {
     params: Params,
     config: &'static Config,
@@ -104,17 +104,15 @@ impl Receive<Tick> for Fridge {
     }
 }
 
-impl Receive<GetOffTime> for Fridge {
+impl Receive<GetParams> for Fridge {
     type Msg = FridgeMsg; // cruft
     fn receive(&mut self,
                 ctx: &Context<Self::Msg>,
-                _: GetOffTime,
+                _: GetParams,
                 sender: Sender) {
-        let off_time = Instant::now() - self.last_off_time;
-        let tosend = off_time.as_millis() as u64;
         sender.as_ref()
         .unwrap()
-        .try_tell(tosend, Some(ctx.myself().into()));
+        .try_tell(self.params.clone(), Some(ctx.myself().into()));
     }
 }
 

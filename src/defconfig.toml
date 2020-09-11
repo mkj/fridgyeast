@@ -1,0 +1,16 @@
+# An example configuration. This should be saved as local.toml
+# All options are required.
+sensor_sleep = 5
+upload_sleep = 83
+
+fridge_delay = 600 # 10 mins to avoid fridge damage from frequent cycling off/on
+fridge_wort_invalid_time = 300 # 5 mins
+
+params_file = "tempserver.conf"
+
+sensor_base_dir = "/sys/devices/w1_bus_master2"
+fridge_gpio_pin = 17
+ambient_name = "missingambient"
+fridge_name = "28-0000042c6dbb"
+wort_name = "28-0000042cccc4" # was fridge
+internal_temperature = "/sys/class/thermal/thermal_zone0/temp"
