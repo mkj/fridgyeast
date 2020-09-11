@@ -3,100 +3,78 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1,maximum-scale=1,minimum-scale=1">
-<script src="jquery-2.1.0.min.js"></script>
-<script src="riot.min.js"></script>
-<script>
-</script>
 <meta name="theme-color" content="#fff">
 
+<script>
+{% include "observer.js" %}
+</script>
+
 <style type="text/css">
-    {% include "set.css" %}
+{% include "set.css" %}
 </style>
 
 <title>Set templog</title>
+
 </head>
 
 <script>
+'use strict';
 
-function Setter(params, csrf_blob) {
-    var self = $.observable(this);
+function Model(params, csrf_blob) {
+    var self = observer.observable(this);
 
-    self.params = params;
+    self.params = params
     self.csrf_blob = csrf_blob
+    Object.assign(self.oldparams, self.params)
+    // to be filled by macros
+    self.increments = new Map()
 
-    $.each(self.params, function(idx, param) {
-        param.id = "param_id_" + idx;
-        param.oldvalue = param.value
-        if (typeof(param.oldvalue) == "boolean")
-        {
-            param.oldvaluetext = param.oldvalue ? "Yes" : "No";
-        }
-        else if (param.kind == "number")
-        {
-            param.oldvaluetext = Number(param.oldvalue).toFixed(param.digits)
-            param.numberstep = 0.1**param.digits
-        }
-        else
-        {
-            param.oldvaluetext = param.oldvalue;
-        }
-    });
+    self.set = function(param, newvalue) {
+        params[param] = newvalue
+        self.emit("edit", param)
+    }
 
-    self.edit = function(param, newvalue) {
-        param.value = newvalue;
-        params[param.name] = param;
-        self.trigger("edit", param);
+    self.get_increment = function(param) {
+        // || is OK because a 0 increment would be silly
+        return self.increments.get(param) || 1
     }
 
     self.adjust = function(param, updown) {
-        // XXX increment
-        param.value += (param.amount*updown);
-        self.trigger("edit", param);
+        params[param] += updown * self.get_increment(param)
+        self.emit("edit", param)
     }
 
     self.save = function() {
-        self.trigger("status", "Saving...")
+        self.emit("status", "Saving...")
 
-        var post_json = {};
-        post_json.csrf_blob = self.csrf_blob;
-        post_json.params =
-            self.params.map(function(v, idx, array) {
-                return {
-                    name: v.name,
-                    value: v.value
-                };
-            });
+        var post_json = {}
+        post_json.csrf_blob = self.csrf_blob
+        post_json.params = Object.entries(self.params)
 
-        var post_data = {data: JSON.stringify(post_json)};
+        const post_data = {data: JSON.stringify(post_json)}
 
         var req = $.ajax({type: "POST",
             url: "set/update",
             data: post_data});
 
         req.done(function(data, status, hdr) {
-            self.trigger("status", "Saved")
+            self.emit("status", "Saved")
         });
 
         req.fail(function(data, status, hdr) {
-            self.trigger("status", 
+            self.emit("status", 
                 "Failed: "  + data.status + ' '
                 + data.statusText + ' ' + data.responseText)
         });
     }
 }
 
-(function() { 'use strict';
+(function() {
 
-var csrf_blob = "{{csrf_blob}}";
-var allowed = {{allowed}};
-window.setter = new Setter(params, csrf_blob);
+var save_allowed = {{allowed}};
+window.model = new Model({{params|json|safe}}, "{{csrf_blob}}");
 
-var number_template = $("[type='html/num_input']").html();
-var button_template = $("[type='html/yesno_button']").html();
-
-setter.on("add", add);
-
-setter.on("edit", function(param)
+model.on("edit", function(param)
 {
     var el = $("#" + param.id);
     if (param.kind === "number")
@@ -123,28 +101,19 @@ setter.on("edit", function(param)
     $("#oldvalue", el).toggleClass("modified", !same);
 });
 
-setter.on("status", function(status) {
+model.on("status", function(status) {
     $('#status').text(status)
 })
 
-var root;
-
 window.onload = function() {
-    // clear list and add new ones
-    root = $("#paramlist");
-
-    root.empty() && $.each(setter.params, function (idx, p) {
-        add(p);
-    })
-
-    if (!allowed) {
+    if (!save_allowed) {
         $("#savebutton").attr("disabled", true);
         $('#status').text("No cert")
         $('#mailauth').show();
     }
 
     $("#savebutton").click(function() {
-        setter.save();
+        model.save();
     })
 }
 
@@ -171,22 +140,22 @@ function add(param)
         input.keyup(function(e) {
             if (e.which == 13)
             {
-                setter.edit(param, Number(this.value));
+                model.set(param, Number(this.value));
             }
         });
 
         input.blur(function(e) {
-            setter.edit(param, Number(this.value));
+            model.set(param, Number(this.value));
         });
 
         $(".button_up", el).on("mousedown touchstart", function(e) {
             e.preventDefault();
-            setter.adjust(param, 1);
+            model.adjust(param, 1);
             this.blur()
         });
         $(".button_down", el).on("mousedown touchstart", function(e) {
             e.preventDefault();
-            setter.adjust(param, -1);
+            model.adjust(param, -1);
             this.blur()
         });
 
@@ -199,12 +168,12 @@ function add(param)
         var button_no = $(".button_no", el);
 
         button_yes.on("mousedown touchstart", function(e) {
-            setter.edit(param, true);
+            model.set(param, true);
             this.blur()
         })
 
         button_no.on("mousedown touchstart", function(e) {
-            setter.edit(param, false);
+            model.set(param, false);
             this.blur()
         })
 

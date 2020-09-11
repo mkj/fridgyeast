@@ -1,7 +1,8 @@
-/* Riot 1.0.4, @license MIT, (c) 2014 Muut Inc + contributors */
-(function(riot) { "use strict";
+/* Derived from Riot 1.0.4, @license MIT, (c) 2014 Muut Inc + contributors */
+(function() { "use strict";
 
-riot.observable = function(el) {
+var observer = {}
+observer.observable = function(el) {
   var callbacks = {}, slice = [].slice;
 
   el.on = function(events, fn) {
@@ -35,7 +36,7 @@ riot.observable = function(el) {
     return el.on(name, fn);
   };
 
-  el.trigger = function(name) {
+  el.emit = function(name) {
     var args = slice.call(arguments, 1),
       fns = callbacks[name] || [];
 
@@ -54,76 +55,16 @@ riot.observable = function(el) {
   return el;
 
 };
-var FN = {}, // Precompiled templates (JavaScript functions)
-  template_escape = {"\\": "\\\\", "\n": "\\n", "\r": "\\r", "'": "\\'"},
-  render_escape = {'&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;'};
 
-function default_escape_fn(str, key) {
-  return str == null ? '' : (str+'').replace(/[&\"<>]/g, function(char) {
-    return render_escape[char];
-  });
-}
-
-riot.render = function(tmpl, data, escape_fn) {
-  if (escape_fn === true) escape_fn = default_escape_fn;
-  tmpl = tmpl || '';
-
-  return (FN[tmpl] = FN[tmpl] || new Function("_", "e", "return '" +
-    tmpl.replace(/[\\\n\r']/g, function(char) {
-      return template_escape[char];
-    }).replace(/{\s*([\w\.]+)\s*}/g, "' + (e?e(_.$1,'$1'):_.$1||(_.$1==null?'':_.$1)) + '") + "'")
-  )(data, escape_fn);
-};
-/* Cross browser popstate */
-(function () {
-  // for browsers only
-  if (typeof window === "undefined") return;
-
-  var currentHash,
-    pops = riot.observable({}),
-    listen = window.addEventListener,
-    doc = document;
-
-  function pop(hash) {
-    hash = hash.type ? location.hash : hash;
-    if (hash !== currentHash) pops.trigger("pop", hash);
-    currentHash = hash;
-  }
-
-  /* Always fire pop event upon page load (normalize behaviour across browsers) */
-
-  // standard browsers
-  if (listen) {
-    listen("popstate", pop, false);
-    doc.addEventListener("DOMContentLoaded", pop, false);
-
-  // IE
-  } else {
-    doc.attachEvent("onreadystatechange", function() {
-      if (doc.readyState === "complete") pop("");
-    });
-  }
-
-  /* Change the browser URL or listen to changes on the URL */
-  riot.route = function(to) {
-    // listen
-    if (typeof to === "function") return pops.on("pop", to);
-
-    // fire
-    if (history.pushState) history.pushState(0, 0, to);
-    pop(to);
-
-  };
-})();
 if (typeof exports === 'object') {
   // CommonJS support
-  module.exports = riot;
+  module.exports = observer;
 } else if (typeof define === 'function' && define.amd) {
   // support AMD
-  define(function() { return riot; });
+  define(function() { return observer; });
 } else {
   // support browser
-  window.riot = riot;
+  window.observer = observer;
 }
 
-})({});
+})();
