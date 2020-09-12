@@ -149,7 +149,7 @@ dependencies = [
  "percent-encoding",
  "proc-macro2 1.0.21",
  "quote 1.0.7",
- "serde 1.0.115",
+ "serde 1.0.116",
  "serde_json",
  "syn 1.0.40",
  "toml",
@@ -270,7 +270,7 @@ dependencies = [
  "hmac",
  "kv-log-macro",
  "rand 0.7.3",
- "serde 1.0.115",
+ "serde 1.0.116",
  "serde_json",
  "sha2",
 ]
@@ -414,7 +414,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f30d3a39baa26f9651f17b375061f3233dde33424a8b72b0dbe93a68a0bc896d"
 dependencies = [
  "byteorder",
- "serde 1.0.115",
+ "serde 1.0.116",
 ]
 
 [[package]]
@@ -528,7 +528,7 @@ checksum = "942f72db697d8767c22d46a598e01f2d3b475501ea43d0db4f16d90259182d0b"
 dependencies = [
  "num-integer",
  "num-traits 0.2.12",
- "serde 1.0.115",
+ "serde 1.0.116",
  "time 0.1.44",
 ]
 
@@ -565,7 +565,7 @@ dependencies = [
  "lazy_static",
  "nom",
  "rust-ini",
- "serde 1.0.115",
+ "serde 1.0.116",
  "serde-hjson",
  "serde_json",
  "toml",
@@ -597,7 +597,7 @@ dependencies = [
  "percent-encoding",
  "rand 0.7.3",
  "sha2",
- "time 0.2.18",
+ "time 0.2.19",
  "version_check",
 ]
 
@@ -690,15 +690,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dashmap"
-version = "4.0.0-rc6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "308a6703be2d759cb5fb7b80a23547fe73a8d5ebf70d3a4ca7f0ef4c0bfc2265"
-dependencies = [
- "once_cell",
-]
-
-[[package]]
 name = "data-encoding"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -777,7 +768,7 @@ dependencies = [
  "cfg-if",
  "js-sys",
  "log",
- "serde 1.0.115",
+ "serde 1.0.116",
  "serde_derive",
  "serde_json",
  "wasm-bindgen",
@@ -801,7 +792,7 @@ dependencies = [
  "regex",
  "riker",
  "riker-patterns",
- "serde 1.0.115",
+ "serde 1.0.116",
  "serde_json",
  "slog",
  "slog-scope",
@@ -1038,7 +1029,7 @@ dependencies = [
  "infer",
  "pin-project-lite",
  "rand 0.7.3",
- "serde 1.0.115",
+ "serde 1.0.116",
  "serde_json",
  "serde_qs",
  "serde_urlencoded",
@@ -1556,13 +1547,11 @@ dependencies = [
 
 [[package]]
 name = "riker"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7b07140216b4c980a887315331822cc63f6d22f824b23dbff1751aee655a365"
+version = "0.4.0"
+source = "git+https://github.com/riker-rs/riker?rev=2f31854185a5a99cacc3352315d7fae312daec77#2f31854185a5a99cacc3352315d7fae312daec77"
 dependencies = [
  "chrono",
  "config",
- "dashmap",
  "futures",
  "num_cpus",
  "pin-utils",
@@ -1577,9 +1566,8 @@ dependencies = [
 
 [[package]]
 name = "riker-macros"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2a8e8f71c9e7980a596c39c7e3537ea8563054526e15712a610ac97a02dba15"
+version = "0.1.0"
+source = "git+https://github.com/riker-rs/riker?rev=2f31854185a5a99cacc3352315d7fae312daec77#2f31854185a5a99cacc3352315d7fae312daec77"
 dependencies = [
  "proc-macro2 0.4.30",
  "quote 0.6.13",
@@ -1588,9 +1576,9 @@ dependencies = [
 
 [[package]]
 name = "riker-patterns"
-version = "0.4.1"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c70b6a7cc99d671512a4bee2b73e2d859f4a51fd18453795ca42fa1d05045138"
+checksum = "bc81647ecf4fa091f942afaa3b4de3f359484ab5c503142562e58130eeb9b816"
 dependencies = [
  "futures",
  "riker",
@@ -1720,9 +1708,9 @@ checksum = "9dad3f759919b92c3068c696c15c3d17238234498bbdcc80f2c469606f948ac8"
 
 [[package]]
 name = "serde"
-version = "1.0.115"
+version = "1.0.116"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e54c9a88f2da7238af84b5101443f0c0d0a3bbdc455e34a5c9497b1903ed55d5"
+checksum = "96fe57af81d28386a513cbc6858332abc6117cfdb5999647c6444b8f43a370a5"
 dependencies = [
  "serde_derive",
 ]
@@ -1742,9 +1730,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.115"
+version = "1.0.116"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "609feed1d0a73cc36a0182a840a9b37b4a82f0b1150369f0536a9e3f2a31dc48"
+checksum = "f630a6370fd8e457873b4bd2ffdae75408bc291ba72be773772a4c2a065d9ae8"
 dependencies = [
  "proc-macro2 1.0.21",
  "quote 1.0.7",
@@ -1759,7 +1747,7 @@ checksum = "164eacbdb13512ec2745fb09d51fd5b22b0d65ed294a1dcf7285a360c80a675c"
 dependencies = [
  "itoa",
  "ryu",
- "serde 1.0.115",
+ "serde 1.0.116",
 ]
 
 [[package]]
@@ -1771,7 +1759,7 @@ dependencies = [
  "data-encoding",
  "error-chain",
  "percent-encoding",
- "serde 1.0.115",
+ "serde 1.0.116",
 ]
 
 [[package]]
@@ -1791,7 +1779,7 @@ checksum = "9ec5d77e2d4c73717816afac02670d5c4f534ea95ed430442cad02e7a6e32c97"
 dependencies = [
  "dtoa",
  "itoa",
- "serde 1.0.115",
+ "serde 1.0.116",
  "url",
 ]
 
@@ -1932,7 +1920,7 @@ checksum = "c87a60a40fccc84bef0652345bbbbbe20a605bf5d0ce81719fc476f5c03b50ef"
 dependencies = [
  "proc-macro2 1.0.21",
  "quote 1.0.7",
- "serde 1.0.115",
+ "serde 1.0.116",
  "serde_derive",
  "syn 1.0.40",
 ]
@@ -1946,7 +1934,7 @@ dependencies = [
  "base-x",
  "proc-macro2 1.0.21",
  "quote 1.0.7",
- "serde 1.0.115",
+ "serde 1.0.116",
  "serde_derive",
  "serde_json",
  "sha1",
@@ -2081,7 +2069,7 @@ dependencies = [
  "kv-log-macro",
  "pin-project-lite",
  "route-recognizer",
- "serde 1.0.115",
+ "serde 1.0.116",
  "serde_json",
 ]
 
@@ -2112,9 +2100,9 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.2.18"
+version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12785163ae8a1cbb52a5db39af4a5baabd3fe49f07f76f952f89d7e89e5ce531"
+checksum = "80c1a1fd93112fc50b11c43a1def21f926be3c18884fad676ea879572da070a1"
 dependencies = [
  "const_fn",
  "libc",
@@ -2160,7 +2148,7 @@ version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ffc92d160b1eef40665be3a05630d003936a3bc7da7421277846c2613e92c71a"
 dependencies = [
- "serde 1.0.115",
+ "serde 1.0.116",
 ]
 
 [[package]]
@@ -2236,7 +2224,7 @@ dependencies = [
  "idna",
  "matches",
  "percent-encoding",
- "serde 1.0.115",
+ "serde 1.0.116",
 ]
 
 [[package]]
@@ -2297,7 +2285,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ac64ead5ea5f05873d7c12b545865ca2b8d28adfc50a49b84770a3a97265d42"
 dependencies = [
  "cfg-if",
- "serde 1.0.115",
+ "serde 1.0.116",
  "serde_json",
  "wasm-bindgen-macro",
 ]
