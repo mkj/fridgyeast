@@ -72,7 +72,3 @@ input[type="button"]#savebutton {
 span.inputrow {
     //vertical-align: center;
 }
-
-#mailauth {
-    display: none;
-}

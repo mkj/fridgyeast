@@ -13,47 +13,87 @@
 {% include "set.css" %}
 </style>
 
-<title>Set templog</title>
+<title>Set fridge</title>
 
 </head>
+
+{# end yesnoinput html, start yesnoinput code #}
+<script>
+(function () {
+
+})()
+</script>
+{# end yesnoinput #}
+
+<body>
+
+<section id="paramlist">
+{{ self.add_yesnoinput("running", params.running, "Running")|safe }}
+{{ self.add_yesnoinput("nowort", params.nowort, "No wort")|safe }}
+
+{{ self.add_numinput("fridge_setpoint", params.fridge_setpoint, "Setpoint", "°", 0.1, 1)|safe }}
+{{ self.add_numinput("fridge_difference", params.fridge_difference, "Difference", "°", 0.1, 1)|safe }}
+{{ self.add_numinput("fridge_range_lower", params.fridge_range_lower, "Lower range", "°", 1.0, 0)|safe }}
+{{ self.add_numinput("fridge_range_upper", params.fridge_range_upper, "Upper range", "°", 1.0, 0)|safe }}
+
+</section>
+
+<span id="savebox">
+
+<input type="button" id="savebutton" value="Save"
+    {% if !allowed %} 
+    disabled 
+    {% endif %}
+/>
+
+<span id="status"></span>
+{% if !allowed %} 
+<span id="mailauth"> <a href="mailto:{{email}}?Subject=Allow%20Templog&body=Hash%20is%20{{cookie_hash}}">Email</a> </span>
+{% endif %}
+</span>
+
+</body>
 
 <script>
 'use strict';
 
-function Model(params, csrf_blob) {
-    var self = observer.observable(this);
+function Model(params, csrf_blob, save_allowed) {
+    const self = this
+    observer.observable(self)
 
     self.params = params
     self.csrf_blob = csrf_blob
+    self.save_allowed = save_allowed
+
+    self.oldparams = {}
     Object.assign(self.oldparams, self.params)
-    // to be filled by macros
+    // increments to be filled by macros
     self.increments = new Map()
 
     self.set = function(param, newvalue) {
         params[param] = newvalue
-        self.emit("edit", param)
+        self.emit("edit", param, params[param])
     }
 
     self.get_increment = function(param) {
-        // || is OK because a 0 increment would be silly
-        return self.increments.get(param) || 1
+        return self.increments.get(param) ?? 1
     }
 
     self.adjust = function(param, updown) {
-        params[param] += updown * self.get_increment(param)
-        self.emit("edit", param)
+        const newval = params[param] + updown * self.get_increment(param)
+        self.set(param, newval)
     }
 
     self.save = function() {
         self.emit("status", "Saving...")
 
-        var post_json = {}
+        const post_json = {}
         post_json.csrf_blob = self.csrf_blob
         post_json.params = Object.entries(self.params)
 
         const post_data = {data: JSON.stringify(post_json)}
 
-        var req = $.ajax({type: "POST",
+        const req = $.ajax({type: "POST",
             url: "set/update",
             data: post_data});
 
@@ -69,175 +109,119 @@ function Model(params, csrf_blob) {
     }
 }
 
+// Presenter
 (function() {
 
-var save_allowed = {{allowed}};
-window.model = new Model({{params|json|safe}}, "{{csrf_blob}}");
+const initial_params = {{params|json|safe}}
+window.model = new Model(initial_params, "{{csrf_blob}}", {{allowed}});
 
-model.on("edit", function(param)
-{
-    var el = $("#" + param.id);
-    if (param.kind === "number")
-    {
-        set_text_state(el, param);
-    }
-    else if (param.kind === "yesno")
-    {
-        set_button_state(el, param.value);
-    }
+model.on("edit", function(param, value) {
+    const el = document.querySelector("#input_"+param);
     var same;
-    switch (typeof(param.oldvalue))
-    {
+    switch (typeof(value)) {
         case "boolean":
-            same = ((!param.value) == (!param.oldvalue));
+            set_yesnoinput_value(el, value);
+            same = ((!value) == (!model.oldparams[param]));
             break;
         case "number":
-            same = Math.abs(param.value - param.oldvalue) < 1e-3 * param.amount;
+            same = Math.abs(value - model.oldparams[param]) < 1e-3 * model.get_increment(param);
+            set_numinput_value(el, value);
             break;
-        default:
-            same = (param.value === param.oldvalue);
     }
 
-    $("#oldvalue", el).toggleClass("modified", !same);
-});
-
-model.on("status", function(status) {
-    $('#status').text(status)
+    if (same) {
+        el.querySelector(".oldvalue").classList.remove("modified")
+    } else {
+        el.querySelector(".oldvalue").classList.add("modified")
+    }
 })
 
+model.on("status", function(status) {
+    document.querySelector("#status").textContent = status
+})
+
+function set_numinput_value(el, value) {
+    el.querySelector(".input").value = value
+};
+
+function set_yesnoinput_value(el, value) {
+    if (value) {
+        el.querySelector(".button_yes").classList.add("onbutton")
+        el.querySelector(".button_no").classList.remove("onbutton")
+    } else {
+        el.querySelector(".button_no").classList.add("onbutton")
+        el.querySelector(".button_yes").classList.remove("onbutton")
+    }
+};
+
+// View handler code
+function setup_numinput(param) {
+    const el = document.querySelector("#input_"+param);
+    const input = el.querySelector(".input")
+    input.addEventListener("keyup", function(e) {
+        if (e.which == 13) {
+            model.set(param, Number(this.value));
+        }
+    })
+
+    input.addEventListener("blur", function(e) {
+        model.set(param, Number(this.value));
+    })
+
+    function uppress(e) {
+        e.preventDefault()
+        model.adjust(param, 1)
+        this.blur()
+    }
+    function downpress(e) {
+        e.preventDefault()
+        model.adjust(param, -1)
+        this.blur()
+    }
+    el.querySelector(".button_up").addEventListener("mousedown", uppress)
+    el.querySelector(".button_up").addEventListener("touchstart", uppress)
+    el.querySelector(".button_down").addEventListener("mousedown", downpress)
+    el.querySelector(".button_down").addEventListener("touchstart", downpress)
+    set_numinput_value(el, model.params[param]);
+}
+
+function setup_yesnoinput(param) {
+    const el = document.querySelector("#input_"+param);
+    function yespress(e) {
+        model.set(param, true);
+        this.blur()
+    }
+    function nopress(e) {
+        model.set(param, false);
+        this.blur()
+    }
+    el.querySelector(".button_yes").addEventListener("mousedown", yespress)
+    el.querySelector(".button_yes").addEventListener("touchstart", yespress)
+    el.querySelector(".button_no").addEventListener("mousedown", nopress)
+    el.querySelector(".button_no").addEventListener("touchstart", nopress)
+    set_yesnoinput_value(el, model.params[param]);
+}
+
 window.onload = function() {
-    if (!save_allowed) {
-        $("#savebutton").attr("disabled", true);
-        $('#status').text("No cert")
-        $('#mailauth').show();
+    if (!model.save_allowed) {
+        document.querySelector("#status").textContent = "No cert"
     }
 
-    $("#savebutton").click(function() {
+    document.querySelector("#savebutton").addEventListener("click", function() {
         model.save();
     })
-}
 
-function set_text_state(el, param)
-{
-    var input = $(".input", el);
-    var s = Number(param.value).toFixed(param.digits)
-    input.text(s).val(s)
-}
-
-function set_button_state(el, value)
-{
-    $(".button_yes", el).toggleClass("onbutton", value);
-    $(".button_no", el).toggleClass("onbutton", !value);
-}
-
-function add(param)
-{
-    if (param.kind === "number")
-    {
-        var el = $($.render(number_template, param)).appendTo(root);
-        var input = $(".input", el);
-
-        input.keyup(function(e) {
-            if (e.which == 13)
-            {
-                model.set(param, Number(this.value));
-            }
-        });
-
-        input.blur(function(e) {
-            model.set(param, Number(this.value));
-        });
-
-        $(".button_up", el).on("mousedown touchstart", function(e) {
-            e.preventDefault();
-            model.adjust(param, 1);
-            this.blur()
-        });
-        $(".button_down", el).on("mousedown touchstart", function(e) {
-            e.preventDefault();
-            model.adjust(param, -1);
-            this.blur()
-        });
-
-        set_text_state(el, param);
-    }
-    else if (param.kind === "yesno")
-    {
-        var el = $($.render(button_template, param)).appendTo(root);
-        var button_yes = $(".button_yes", el);
-        var button_no = $(".button_no", el);
-
-        button_yes.on("mousedown touchstart", function(e) {
-            model.set(param, true);
-            this.blur()
-        })
-
-        button_no.on("mousedown touchstart", function(e) {
-            model.set(param, false);
-            this.blur()
-        })
-
-        set_button_state(el, param.value);
-    }
+    {# set up some things accumulated earlier #}
+    const numinputs = {{ self.numinputs.clone()|json|safe }}
+    numinputs.forEach(param => setup_numinput(param.name))
+    numinputs.forEach(param => model.increments.set(param.name, param.step))
+    const yesnoinputs = {{ self.yesnoinputs.clone()|json|safe }}
+    yesnoinputs.forEach(param => setup_yesnoinput(param))
 }
 
 })()
 
 
-
-
-
-{% macro numinput(name, value, title, unit, step, digits) %}
-<div class="numinput" 
-    data-paramcomponent="{{name}}"
-    data-paramstep="{{step}}"
-    >
-<span class="existing">{{title}} 
-    <span id="oldvalue">{{ "{:.*}"|format(digits,value) }}{{unit}}</span>
-</span>
-<br/>
-<span class="inputrow">
-<input type="number" class="input" data-paramvalue="{{name}}" step="{{ step }}"/>
-<input type="button" class="button_down" value="-"/>
-<input type="button" class="button_up" value="+"/>
-</span>
-</div>
-{% endmacro %} {# numinput #}
-
 </script>
-
-<body>
-<section id="paramlist">
-    {#
-{% call yesnoinput("running", params.running, "Running") %}
-{% call yesnoinput("nowort", params.nowort, "No wort") %}
-#}
-
-{% call numinput("fridge_setpoint", params.fridge_setpoint, 
-    "Setpoint", "°", 0.1, 1) %}
-{% call numinput("fridge_difference", params.fridge_difference, 
-    "Difference", "°", 0.1, 1) %}
-{% call numinput("fridge_range_lower", params.fridge_range_lower, 
-    "Lower range", "°", 1, 0) %}
-{% call numinput("fridge_range_upper", params.fridge_range_upper, 
-    "Upper range", "°", 1, 0) %}
-
-</section>
-
-<span id="savebox">
-
-<input type="button" id="savebutton" value="Save"
-    {% if !allowed %} 
-    disabled 
-    {% endif %}
-/>
-
-<span id="status"></span>
-<span id="mailauth"> <a href="mailto:{{email}}?Subject=Allow%20Templog&body=Hash%20is%20{{cookie_hash}}">Email</a>
-</span>
-</span>
-
-
-</body>
 
 </html>

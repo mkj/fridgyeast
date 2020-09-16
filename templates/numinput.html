@@ -1,0 +1,11 @@
+<div class="numinput" id="input_{{name}}">
+<span class="existing">{{title}} 
+    <span class="oldvalue">{{ "{:.*}"|format(digits,value) }}{{unit}}</span>
+</span>
+<br/>
+<span class="inputrow">
+<input type="number" class="input" step="{{ step }}"/>
+<input type="button" class="button_down" value="-"/>
+<input type="button" class="button_up" value="+"/>
+</span>
+</div>

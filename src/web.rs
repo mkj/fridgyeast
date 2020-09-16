@@ -1,3 +1,5 @@
+use core::cell::Ref;
+use std::cell::RefCell;
 use anyhow::{Result};
 
 use riker::actors::*;
@@ -19,6 +21,18 @@ struct WebState {
     fridge: ActorRef<fridge::FridgeMsg>,
 }
 
+#[derive(askama::Template,Clone,Serialize)]
+#[template(path="numinput.html")]
+struct NumInput {
+    name: String,
+    value: f32,
+    title: String,
+    unit: String,
+    step: f32,
+    digits: usize,
+}
+
+
 #[derive(askama::Template)]
 #[template(path="set2.html")]
 struct SetPage<'a> {
@@ -27,15 +41,56 @@ struct SetPage<'a> {
     allowed: bool,
     email: &'a str,
     cookie_hash: &'a str,
+
+    numinputs: RefCell<Vec<NumInput>>,
+    yesnoinputs: RefCell<Vec<String>>,
+}
+#[derive(askama::Template)]
+#[template(path="yesnoinput.html")]
+struct YesNoInput<'a> {
+    name: &'a str,
+    value: bool,
+    title: &'a str,
 }
 
-/*
 impl SetPage<'_> {
-    fn spinstep(&self, digits: &usize) -> f32 {
-        f32::powf(0.1, *digits as f32)
+    fn add_numinput<'a>(&self, 
+            name: &'a str,
+            value: &'a f32,
+            title: &'a str,
+            unit: &'a str,
+            step: &'a f32,
+            digits: &'a usize,
+        ) -> NumInput {
+        let input = NumInput {
+            name: name.to_string(),
+            value: *value,
+            title: title.to_string(),
+            unit: unit.to_string(),
+            step: *step,
+            digits: *digits,
+        };
+        self.numinputs.borrow_mut().push(input.clone());
+        // TODO: automatically return equiv of input|safe 
+        // if https://github.com/djc/askama/issues/108 is solved
+        // "recognize a template instance and don't bother escaping it"
+        input
+    }
+    fn add_yesnoinput<'a>(&self, 
+            name: &'a str,
+            value: &'a bool,
+            title: &'a str,
+        ) -> YesNoInput<'a> {
+        let input = YesNoInput {
+            name,
+            value: *value,
+            title,
+        };
+        self.yesnoinputs.borrow_mut().push(name.to_string());
+        // TODO: automatically return equiv of input|safe 
+        input
     }
 }
-*/
 
 pub async fn listen_http(sys: &riker::system::ActorSystem,
     fridge: ActorRef<fridge::FridgeMsg>) -> Result<()> {
@@ -56,6 +111,9 @@ pub async fn listen_http(sys: &riker::system::ActorSystem,
             allowed: false,
             email: "matt@ucc",
             cookie_hash: "oof",
+
+            numinputs: RefCell::new(vec![]),
+            yesnoinputs: RefCell::new(vec![]),
         };
 
         Ok(s)
