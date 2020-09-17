@@ -21,17 +21,51 @@ struct WebState {
     fridge: ActorRef<fridge::FridgeMsg>,
 }
 
-#[derive(askama::Template,Clone,Serialize)]
+#[derive(askama::Template,Serialize)]
 #[template(path="numinput.html")]
 struct NumInput {
     name: String,
-    value: f32,
     title: String,
     unit: String,
     step: f32,
     digits: usize,
 }
 
+impl NumInput {
+    fn new(name: &str,
+           title: & str,
+           unit: & str,
+           step: f32,
+           digits: usize,
+           ) -> Self {
+        NumInput {
+            name: name.to_string(),
+            title: title.to_string(),
+            unit: unit.to_string(),
+            step,
+            digits,
+        }
+    }
+}
+
+#[derive(askama::Template,Serialize)]
+#[template(path="yesnoinput.html")]
+struct YesNoInput {
+    name: String,
+    title: String,
+}
+
+impl YesNoInput {
+    fn new(name: &str,
+        title: &str,
+        ) -> Self {
+
+        YesNoInput {
+            name: name.to_string(),
+            title: title.to_string(),
+        }
+    }
+}
 
 #[derive(askama::Template)]
 #[template(path="set2.html")]
@@ -42,54 +76,8 @@ struct SetPage<'a> {
     email: &'a str,
     cookie_hash: &'a str,
 
-    numinputs: RefCell<Vec<NumInput>>,
-    yesnoinputs: RefCell<Vec<String>>,
-}
-#[derive(askama::Template)]
-#[template(path="yesnoinput.html")]
-struct YesNoInput<'a> {
-    name: &'a str,
-    value: bool,
-    title: &'a str,
-}
-
-impl SetPage<'_> {
-    fn add_numinput<'a>(&self, 
-            name: &'a str,
-            value: &'a f32,
-            title: &'a str,
-            unit: &'a str,
-            step: &'a f32,
-            digits: &'a usize,
-        ) -> NumInput {
-        let input = NumInput {
-            name: name.to_string(),
-            value: *value,
-            title: title.to_string(),
-            unit: unit.to_string(),
-            step: *step,
-            digits: *digits,
-        };
-        self.numinputs.borrow_mut().push(input.clone());
-        // TODO: automatically return equiv of input|safe 
-        // if https://github.com/djc/askama/issues/108 is solved
-        // "recognize a template instance and don't bother escaping it"
-        input
-    }
-    fn add_yesnoinput<'a>(&self, 
-            name: &'a str,
-            value: &'a bool,
-            title: &'a str,
-        ) -> YesNoInput<'a> {
-        let input = YesNoInput {
-            name,
-            value: *value,
-            title,
-        };
-        self.yesnoinputs.borrow_mut().push(name.to_string());
-        // TODO: automatically return equiv of input|safe 
-        input
-    }
+    numinputs: Vec<NumInput>,
+    yesnoinputs: Vec<YesNoInput>,
 }
 
 pub async fn listen_http(sys: &riker::system::ActorSystem,
@@ -105,16 +93,23 @@ pub async fn listen_http(sys: &riker::system::ActorSystem,
         let s = req.state();
         let p: RemoteHandle<Params> = ask(&s.sys, &s.fridge, fridge::GetParams);
 
-        let s = SetPage {
+        let mut s = SetPage {
             params: p.await,
             csrf_blob: "csrfblah",
             allowed: false,
             email: "matt@ucc",
             cookie_hash: "oof",
 
-            numinputs: RefCell::new(vec![]),
-            yesnoinputs: RefCell::new(vec![]),
+            numinputs: vec![],
+            yesnoinputs: vec![],
         };
+
+        s.yesnoinputs.push(YesNoInput::new("running", "Running"));
+        s.yesnoinputs.push(YesNoInput::new("nowort", "No wort"));
+        s.numinputs.push(NumInput::new("fridge_setpoint", "Setpoint", "°", 0.1, 1));
+        s.numinputs.push(NumInput::new("fridge_difference", "Difference", "°", 0.1, 1));
+        s.numinputs.push(NumInput::new("fridge_range_lower", "Lower range", "°", 1.0, 0));
+        s.numinputs.push(NumInput::new("fridge_range_upper", "Upper range", "°", 1.0, 0));
 
         Ok(s)
     });

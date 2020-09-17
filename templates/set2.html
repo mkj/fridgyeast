@@ -9,32 +9,27 @@
 {% include "observer.js" %}
 </script>
 
+<script>
+{% include "set2.js" %}
+</script>
+
 <style type="text/css">
 {% include "set.css" %}
 </style>
 
 <title>Set fridge</title>
-
 </head>
-
-{# end yesnoinput html, start yesnoinput code #}
-<script>
-(function () {
-
-})()
-</script>
-{# end yesnoinput #}
 
 <body>
 
 <section id="paramlist">
-{{ self.add_yesnoinput("running", params.running, "Running")|safe }}
-{{ self.add_yesnoinput("nowort", params.nowort, "No wort")|safe }}
+{% for input in self.yesnoinputs %}
+{{ input|safe }}
+{% endfor %}
 
-{{ self.add_numinput("fridge_setpoint", params.fridge_setpoint, "Setpoint", "°", 0.1, 1)|safe }}
-{{ self.add_numinput("fridge_difference", params.fridge_difference, "Difference", "°", 0.1, 1)|safe }}
-{{ self.add_numinput("fridge_range_lower", params.fridge_range_lower, "Lower range", "°", 1.0, 0)|safe }}
-{{ self.add_numinput("fridge_range_upper", params.fridge_range_upper, "Upper range", "°", 1.0, 0)|safe }}
+{% for input in self.numinputs %}
+{{ input|safe }}
+{% endfor %}
 
 </section>
 
@@ -54,174 +49,5 @@
 
 </body>
 
-<script>
-'use strict';
-
-function Model(params, csrf_blob, save_allowed) {
-    const self = this
-    observer.observable(self)
-
-    self.params = params
-    self.csrf_blob = csrf_blob
-    self.save_allowed = save_allowed
-
-    self.oldparams = {}
-    Object.assign(self.oldparams, self.params)
-    // increments to be filled by macros
-    self.increments = new Map()
-
-    self.set = function(param, newvalue) {
-        params[param] = newvalue
-        self.emit("edit", param, params[param])
-    }
-
-    self.get_increment = function(param) {
-        return self.increments.get(param) ?? 1
-    }
-
-    self.adjust = function(param, updown) {
-        const newval = params[param] + updown * self.get_increment(param)
-        self.set(param, newval)
-    }
-
-    self.save = function() {
-        self.emit("status", "Saving...")
-
-        const post_json = {}
-        post_json.csrf_blob = self.csrf_blob
-        post_json.params = Object.entries(self.params)
-
-        const post_data = {data: JSON.stringify(post_json)}
-
-        const req = $.ajax({type: "POST",
-            url: "set/update",
-            data: post_data});
-
-        req.done(function(data, status, hdr) {
-            self.emit("status", "Saved")
-        });
-
-        req.fail(function(data, status, hdr) {
-            self.emit("status", 
-                "Failed: "  + data.status + ' '
-                + data.statusText + ' ' + data.responseText)
-        });
-    }
-}
-
-// Presenter
-(function() {
-
-const initial_params = {{params|json|safe}}
-window.model = new Model(initial_params, "{{csrf_blob}}", {{allowed}});
-
-model.on("edit", function(param, value) {
-    const el = document.querySelector("#input_"+param);
-    var same;
-    switch (typeof(value)) {
-        case "boolean":
-            set_yesnoinput_value(el, value);
-            same = ((!value) == (!model.oldparams[param]));
-            break;
-        case "number":
-            same = Math.abs(value - model.oldparams[param]) < 1e-3 * model.get_increment(param);
-            set_numinput_value(el, value);
-            break;
-    }
-
-    if (same) {
-        el.querySelector(".oldvalue").classList.remove("modified")
-    } else {
-        el.querySelector(".oldvalue").classList.add("modified")
-    }
-})
-
-model.on("status", function(status) {
-    document.querySelector("#status").textContent = status
-})
-
-function set_numinput_value(el, value) {
-    el.querySelector(".input").value = value
-};
-
-function set_yesnoinput_value(el, value) {
-    if (value) {
-        el.querySelector(".button_yes").classList.add("onbutton")
-        el.querySelector(".button_no").classList.remove("onbutton")
-    } else {
-        el.querySelector(".button_no").classList.add("onbutton")
-        el.querySelector(".button_yes").classList.remove("onbutton")
-    }
-};
-
-// View handler code
-function setup_numinput(param) {
-    const el = document.querySelector("#input_"+param);
-    const input = el.querySelector(".input")
-    input.addEventListener("keyup", function(e) {
-        if (e.which == 13) {
-            model.set(param, Number(this.value));
-        }
-    })
-
-    input.addEventListener("blur", function(e) {
-        model.set(param, Number(this.value));
-    })
-
-    function uppress(e) {
-        e.preventDefault()
-        model.adjust(param, 1)
-        this.blur()
-    }
-    function downpress(e) {
-        e.preventDefault()
-        model.adjust(param, -1)
-        this.blur()
-    }
-    el.querySelector(".button_up").addEventListener("mousedown", uppress)
-    el.querySelector(".button_up").addEventListener("touchstart", uppress)
-    el.querySelector(".button_down").addEventListener("mousedown", downpress)
-    el.querySelector(".button_down").addEventListener("touchstart", downpress)
-    set_numinput_value(el, model.params[param]);
-}
-
-function setup_yesnoinput(param) {
-    const el = document.querySelector("#input_"+param);
-    function yespress(e) {
-        model.set(param, true);
-        this.blur()
-    }
-    function nopress(e) {
-        model.set(param, false);
-        this.blur()
-    }
-    el.querySelector(".button_yes").addEventListener("mousedown", yespress)
-    el.querySelector(".button_yes").addEventListener("touchstart", yespress)
-    el.querySelector(".button_no").addEventListener("mousedown", nopress)
-    el.querySelector(".button_no").addEventListener("touchstart", nopress)
-    set_yesnoinput_value(el, model.params[param]);
-}
-
-window.onload = function() {
-    if (!model.save_allowed) {
-        document.querySelector("#status").textContent = "No cert"
-    }
-
-    document.querySelector("#savebutton").addEventListener("click", function() {
-        model.save();
-    })
-
-    {# set up some things accumulated earlier #}
-    const numinputs = {{ self.numinputs.clone()|json|safe }}
-    numinputs.forEach(param => setup_numinput(param.name))
-    numinputs.forEach(param => model.increments.set(param.name, param.step))
-    const yesnoinputs = {{ self.yesnoinputs.clone()|json|safe }}
-    yesnoinputs.forEach(param => setup_yesnoinput(param))
-}
-
-})()
-
-
-</script>
 
 </html>
