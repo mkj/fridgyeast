@@ -1,4 +1,4 @@
-use anyhow::{Result};
+use anyhow::{anyhow,Result,Context};
 
 use std::str;
 
@@ -49,6 +49,15 @@ impl Params {
     pub fn load(config: &Config) -> Params {
         Self::try_load(&config.params_file)
             .unwrap_or_else(|_| Params::defaults())
+    }
+
+    pub fn save(&self, config: &Config) -> Result<()> {
+        let af = atomicwrites::AtomicFile::new(&config.params_file, atomicwrites::AllowOverwrite);
+        af.write(|f| {
+            serde_json::ser::to_writer_pretty(f, self)
+        }).or_else(|e|
+            Err(anyhow!("Writing params failed: {}", e))
+        )
     }
 
 }

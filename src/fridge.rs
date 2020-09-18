@@ -92,6 +92,8 @@ impl Receive<Params> for Fridge {
         self.params = p;
         println!("fridge set_params {:?}", self.params);
 
+        self.params.save(self.config);
+
         self.tick(ctx);
     }
 }
