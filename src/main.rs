@@ -42,6 +42,7 @@ fn run(args: Opt) -> Result<()> {
     if riker_cfg.get::<String>("log.level").is_err() {
         if cf.debug {
             riker_cfg.set("log.level", "debug").unwrap();
+            tide::log::with_level(tide::log::LevelFilter::Trace);
         } else {
             riker_cfg.set("log.level", "info").unwrap();
         }

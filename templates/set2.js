@@ -24,23 +24,28 @@ function Model(initial_params, csrf_blob, save_allowed) {
 
         const post_json = {}
         post_json.csrf_blob = self.csrf_blob
-        post_json.params = Object.entries(self.params)
+        post_json.params = self.params
+        console.log(post_json)
 
-        const post_data = {data: JSON.stringify(post_json)}
-
-        const req = $.ajax({type: "POST",
-            url: "set/update",
-            data: post_data});
-
-        req.done(function(data, status, hdr) {
-            self.emit("status", "Saved")
-        });
-
-        req.fail(function(data, status, hdr) {
-            self.emit("status", 
-                "Failed: "  + data.status + ' '
-                + data.statusText + ' ' + data.responseText)
-        });
+        fetch("update",
+            {method: "POST",
+            body: JSON.stringify(post_json)})
+        .then(response => {
+            if (response.ok) {
+                self.emit("status", "Saved")
+            } else {
+                // seriously?
+                response.blob()
+                .then(doneblob => {
+                    doneblob.text()
+                    .then(donetext => {
+                        self.emit("status", 
+                            "Failed: "  + response.status + ' '
+                            + response.statusText + ' ' + donetext)
+                    })
+                })
+            }
+        })
     }
 } // end model
 

@@ -34,6 +34,8 @@ pub struct Fridge {
     wort_valid_time: Instant,
     integrator: StepIntegrator,
     output: FridgeOutput,
+
+    often_tooearly: NotTooOften,
 }
 
 impl Actor for Fridge {
@@ -141,6 +143,7 @@ impl ActorFactoryArgs<&'static Config> for Fridge {
             wort_valid_time: Instant::now() - Duration::new(config.fridge_wort_invalid_time, 100),
             integrator: StepIntegrator::new(Duration::new(1, 0)),
             output: Self::make_output(&config),
+            often_tooearly: NotTooOften::new(120),
         };
 
         if config.nowait {
@@ -199,7 +202,7 @@ impl Fridge {
         // Safety to avoid bad things happening to the fridge motor (?)
         // When it turns off don't start up again for at least FRIDGE_DELAY
         if !self.on && off_time < Duration::new(self.config.fridge_delay, 0) {
-            info!("fridge skipping, too early");
+            self.often_tooearly.and_then(|| info!("fridge skipping, too early"));
             return;
         }
 
@@ -299,7 +302,6 @@ impl Fridge {
     /// All specified in next_wakeup()
     fn tick(&mut self,
         ctx: &Context<<Self as Actor>::Msg>) {
-        debug!("tick");
 
         self.compare_temperatures();
 

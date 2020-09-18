@@ -10,7 +10,8 @@ use serde::{Serialize,Deserialize};
 
 use askama::Template;
 use std::convert::TryInto;
-use tide::{http::mime::HTML, Body, Response};
+use tide::utils::After;
+use tide::{Request, Response, StatusCode};
 
 use crate::fridge;
 use crate::params::Params;
@@ -32,12 +33,7 @@ struct NumInput {
 }
 
 impl NumInput {
-    fn new(name: &str,
-           title: & str,
-           unit: & str,
-           step: f32,
-           digits: usize,
-           ) -> Self {
+    fn new(name: &str, title: & str, unit: & str, step: f32, digits: usize, ) -> Self {
         NumInput {
             name: name.to_string(),
             title: title.to_string(),
@@ -56,10 +52,7 @@ struct YesNoInput {
 }
 
 impl YesNoInput {
-    fn new(name: &str,
-        title: &str,
-        ) -> Self {
-
+    fn new(name: &str, title: &str, ) -> Self {
         YesNoInput {
             name: name.to_string(),
             title: title.to_string(),
@@ -80,6 +73,54 @@ struct SetPage<'a> {
     yesnoinputs: Vec<YesNoInput>,
 }
 
+async fn handle_set<'a>(req: tide::Request<WebState>) -> tide::Result<SetPage<'a>> {
+    let s = req.state();
+    let p: RemoteHandle<Params> = ask(&s.sys, &s.fridge, fridge::GetParams);
+
+    let mut s = SetPage {
+        params: p.await,
+        csrf_blob: "csrfblah",
+        allowed: true,
+        email: "matt@ucc",
+        cookie_hash: "oof",
+
+        numinputs: vec![],
+        yesnoinputs: vec![],
+    };
+
+    s.yesnoinputs.push(YesNoInput::new("running", "Running"));
+    s.yesnoinputs.push(YesNoInput::new("nowort", "No wort"));
+    s.numinputs.push(NumInput::new("fridge_setpoint", "Setpoint", "°", 0.1, 1));
+    s.numinputs.push(NumInput::new("fridge_difference", "Difference", "°", 0.1, 1));
+    s.numinputs.push(NumInput::new("fridge_range_lower", "Lower range", "°", 1.0, 0));
+    s.numinputs.push(NumInput::new("fridge_range_upper", "Upper range", "°", 1.0, 0));
+
+    Ok(s)
+}
+
+#[derive(Deserialize)]
+struct Update {
+    csrf_blob: String,
+    params: Params,
+}
+
+async fn handle_update(mut req: tide::Request<WebState>) -> tide::Result<> {
+    debug!("got handle_update");
+    let update: Update = req.body_json().await.or_else(|e| {
+        debug!("failed decoding {:?}", e);
+        Err(e)
+        })?;
+    debug!("got params {:?}", update.params);
+    if update.params.running {
+        req.state().fridge.tell(update.params, None);
+        Ok("Updated".into())
+    } else {
+        let e = Err(tide::Error::from_str(StatusCode::NotExtended, "The fridge must run"));
+        debug!("failing with {:?}", e);
+        e
+    }
+}
+
 pub async fn listen_http(sys: &riker::system::ActorSystem,
     fridge: ActorRef<fridge::FridgeMsg>) -> Result<()> {
 
@@ -89,30 +130,18 @@ pub async fn listen_http(sys: &riker::system::ActorSystem,
         fridge,
     });
 
-    server.at("/").get(|req: tide::Request<WebState>| async move { 
-        let s = req.state();
-        let p: RemoteHandle<Params> = ask(&s.sys, &s.fridge, fridge::GetParams);
+    // Not sure why this isn't a default?
+    // https://github.com/http-rs/tide/issues/614
+    server.with(After(|mut res: Response| async {
+        if let Some(err) = res.take_error() {
+            res.set_body(err.to_string())
+        }
+        Ok(res)
+    }));
 
-        let mut s = SetPage {
-            params: p.await,
-            csrf_blob: "csrfblah",
-            allowed: false,
-            email: "matt@ucc",
-            cookie_hash: "oof",
-
-            numinputs: vec![],
-            yesnoinputs: vec![],
-        };
-
-        s.yesnoinputs.push(YesNoInput::new("running", "Running"));
-        s.yesnoinputs.push(YesNoInput::new("nowort", "No wort"));
-        s.numinputs.push(NumInput::new("fridge_setpoint", "Setpoint", "°", 0.1, 1));
-        s.numinputs.push(NumInput::new("fridge_difference", "Difference", "°", 0.1, 1));
-        s.numinputs.push(NumInput::new("fridge_range_lower", "Lower range", "°", 1.0, 0));
-        s.numinputs.push(NumInput::new("fridge_range_upper", "Upper range", "°", 1.0, 0));
-
-        Ok(s)
-    });
+    // url handlers
+    server.at("/").get(handle_set);
+    server.at("/update").post(handle_update);
 
     server.listen(
         tide_rustls::TlsListener::build()
