@@ -9,6 +9,7 @@ use std::io::Read;
 use serde::{Serialize,Deserialize};
 
 use riker::actors::*;
+use std::io::Write;
 
 use super::types::*;
 use super::config::Config;
@@ -53,8 +54,9 @@ impl Params {
 
     pub fn save(&self, config: &Config) -> Result<()> {
         let af = atomicwrites::AtomicFile::new(&config.params_file, atomicwrites::AllowOverwrite);
-        af.write(|f| {
-            serde_json::ser::to_writer_pretty(f, self)
+        af.write(|mut f| {
+            serde_json::ser::to_writer(&mut f, self)?;
+            f.write_all(b"\n")
         }).or_else(|e|
             Err(anyhow!("Writing params failed: {}", e))
         )

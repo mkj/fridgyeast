@@ -1,6 +1,6 @@
 use core::cell::Ref;
-use std::cell::RefCell;
-use anyhow::{Result};
+
+use anyhow::Result;
 
 use riker::actors::*;
 use riker_patterns::ask::ask;
@@ -111,14 +111,16 @@ async fn handle_update(mut req: tide::Request<WebState>) -> tide::Result<> {
         Err(e)
         })?;
     debug!("got params {:?}", update.params);
-    if update.params.running {
-        req.state().fridge.tell(update.params, None);
-        Ok("Updated".into())
-    } else {
-        let e = Err(tide::Error::from_str(StatusCode::NotExtended, "The fridge must run"));
-        debug!("failing with {:?}", e);
-        e
-    }
+
+    // send the params to the fridge
+    let s = req.state();
+    let p: RemoteHandle<Result<(),String>> = ask(&s.sys, &s.fridge, update.params);
+
+    // check it succeeded
+    p.await
+    .map(|_| "Updated".into())
+    .map_err(|e| tide::http::Error::from_str(StatusCode::InternalServerError, e))
+
 }
 
 pub async fn listen_http(sys: &riker::system::ActorSystem,
@@ -130,8 +132,9 @@ pub async fn listen_http(sys: &riker::system::ActorSystem,
         fridge,
     });
 
-    // Not sure why this isn't a default?
+    // Make it return a http error's string as the body.
     // https://github.com/http-rs/tide/issues/614
+    // Not sure why this isn't a default?
     server.with(After(|mut res: Response| async {
         if let Some(err) = res.take_error() {
             res.set_body(err.to_string())

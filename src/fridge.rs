@@ -12,7 +12,7 @@ use sysfs_gpio::{Direction, Pin};
 
 use crate::params::Params;
 use super::config::Config;
-use super::params;
+
 use super::sensor;
 use super::types::*;
 
@@ -88,13 +88,27 @@ impl Receive<Params> for Fridge {
     fn receive(&mut self,
                 ctx: &Context<Self::Msg>,
                 p: Params,
-                _sender: Sender) {
+                sender: Sender) {
         self.params = p;
         println!("fridge set_params {:?}", self.params);
 
-        self.params.save(self.config);
+        let res = self.params.save(self.config);
+
+        if let Err(e) = &res {
+            // log it ...
+            error!("Failed saving params: {}", e);
+        }
+
+        // ... and return it
+        let res = res.map_err(|e| e.to_string());
+        if let Some(s) = sender {
+            s.try_tell(res, Some(ctx.myself().into())).unwrap_or_else(|_| {
+                error!("This shouldn't happen, failed sending params");
+            })
+        }
 
         self.tick(ctx);
+
     }
 }
 
@@ -114,9 +128,11 @@ impl Receive<GetParams> for Fridge {
                 ctx: &Context<Self::Msg>,
                 _: GetParams,
                 sender: Sender) {
-        sender.as_ref()
-        .unwrap()
-        .try_tell(self.params.clone(), Some(ctx.myself().into()));
+        if let Some(s) = sender {
+            s.try_tell(self.params.clone(), Some(ctx.myself().into())).unwrap_or_else(|_| {
+                error!("This shouldn't happen, failed sending params");
+            })
+        }
     }
 }
 
@@ -231,7 +247,6 @@ impl Fridge {
         }
 
         if self.on {
-            debug!("fridge is on");
             let on_time = self.integrator.integrate().as_secs() as f32;
             let on_ratio = on_time / self.params.overshoot_delay as f32;
 
@@ -263,8 +278,6 @@ impl Fridge {
                 self.turn_off();
             }
         } else {
-            debug!("fridge is off. fridge {:?} max {:?}. wort {:?} max {:?}",
-                self.temp_fridge, fridge_max, self.temp_wort, wort_max);
             let mut turn_on = false;
             if self.temp_wort.is_some() && !self.params.nowort {
                 // use the wort temperature

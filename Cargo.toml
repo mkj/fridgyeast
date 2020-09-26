@@ -44,4 +44,9 @@ askama = { git = "https://github.com/djc/askama", rev="a94835d6de0add5f9fd6095bb
 
 [profile.release]
 opt-level = 's'
-lto = true
+lto = "thin"
+debug = 0
+
+[profile.dev]
+debug = 0
+
