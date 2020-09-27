@@ -1,14 +1,8 @@
 use std::collections::HashMap;
 use std::time::{Duration,Instant};
-use std::error::Error;
-use std::fmt;
-use std::io;
+
 use std::cmp;
 use std::cell::Cell;
-
-use std;
-
-use serde_json;
 
 #[derive(Debug,Clone)]
 pub struct Readings {
@@ -28,116 +22,6 @@ impl Readings {
 
     pub fn get_temp(&self, name: &str) -> Option<f32> {
         self.temps.get(name).map(|f| *f)
-    }
-}
-
-#[derive(Debug)]
-pub enum TemplogErrorKind {
-    None,
-    Io(io::Error),
-    ParseFloat(std::num::ParseFloatError),
-    SerdeJson(serde_json::Error),
-}
-
-#[derive(Debug)]
-pub struct TemplogError {
-    msg: String,
-    desc: String,
-    kind: TemplogErrorKind,
-}
-
-impl Error for TemplogError {
-    fn description(&self) -> &str { 
-        &self.desc
-    }
-
-    fn cause(&self) -> Option<&dyn Error> { 
-        match self.kind {
-            TemplogErrorKind::None => None,
-            TemplogErrorKind::Io(ref e) => Some(e),
-            TemplogErrorKind::ParseFloat(ref e) => Some(e),
-            TemplogErrorKind::SerdeJson(ref e) => Some(e),
-        }
-    }
-
-}
-
-impl fmt::Display for TemplogError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.kind_str())?;
-        if !self.msg.is_empty() {
-            write!(f, ": {}", self.msg)?;
-        }
-        match self.kind {
-            TemplogErrorKind::None => Ok(()),
-            TemplogErrorKind::Io(ref e) => write!(f, ": {}", e),
-            TemplogErrorKind::SerdeJson(ref e) => write!(f, ": {}", e),
-            TemplogErrorKind::ParseFloat(ref e) => write!(f, ": {}", e),
-        }?;
-        Ok(())
-    }
-}
-
-impl TemplogError {
-    pub fn new(msg: &str) -> Self {
-        TemplogError::new_kind(msg, TemplogErrorKind::None)
-    }
-
-    pub fn new_io(msg: &str, e: io::Error) -> Self {
-        TemplogError::new_kind(msg, TemplogErrorKind::Io(e))
-    }
-
-    pub fn new_parse_float(msg: &str, e: std::num::ParseFloatError) -> Self {
-        TemplogError::new_kind(msg, TemplogErrorKind::ParseFloat(e))
-    }
-
-    pub fn new_serde_json(msg: &str, e: serde_json::Error) -> Self {
-        TemplogError::new_kind(msg, TemplogErrorKind::SerdeJson(e))
-    }
-
-    pub fn kind(&self) -> &TemplogErrorKind {
-        return &self.kind;
-    }
-
-    fn new_kind(msg: &str, k: TemplogErrorKind) -> Self {
-        let mut s = TemplogError { 
-            msg: msg.to_string(),
-            desc: String::new(),
-            kind: k,
-        };
-        s.desc = if s.msg.is_empty() {
-            s.kind_str().to_string()
-        } else {
-            format!("{}: {}", s.kind_str(), s.msg)
-        };
-        s
-    }
-
-    fn kind_str(&self) -> &str {
-        match self.kind {
-            TemplogErrorKind::None => "Templog Error",
-            TemplogErrorKind::Io(_) => "Templog IO error",
-            TemplogErrorKind::SerdeJson(_) => "Templog Json decode error",
-            TemplogErrorKind::ParseFloat(_) => "Templog parse error",
-        }
-    }
-}
-
-impl From<io::Error> for TemplogError {
-    fn from(e: io::Error) -> Self {
-        TemplogError::new_io("", e)
-    }
-}
-
-impl From<std::num::ParseFloatError> for TemplogError {
-    fn from(e: std::num::ParseFloatError) -> Self {
-        TemplogError::new_parse_float("", e)
-    }
-}
-
-impl From<serde_json::Error> for TemplogError {
-    fn from(e: serde_json::Error) -> Self {
-        TemplogError::new_serde_json("", e)
     }
 }
 
@@ -183,7 +67,7 @@ impl StepIntegrator {
     pub fn new(limit: Duration) -> Self {
         StepIntegrator {
             on_periods: Vec::new(),
-            limit: limit,
+            limit,
         }
     }
 

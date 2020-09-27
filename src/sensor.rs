@@ -1,5 +1,3 @@
-use riker::actors::*;
-
 use std::time::Duration;
 use std::io;
 use std::fs::File;
@@ -7,6 +5,12 @@ use std::io::{Read,BufReader,BufRead};
 use std::path::PathBuf;
 
 use std::str::FromStr;
+
+use riker::actors::*;
+
+use anyhow::{anyhow,Result};
+// avoid clash with riker Context, it's only for trait's .context()
+use anyhow::Context as AHContext;
 
 use super::types::*;
 use super::config::Config;
@@ -44,8 +48,8 @@ impl Actor for OneWireSensor {
 impl ActorFactoryArgs<(&'static Config, ChannelRef<Readings>)> for OneWireSensor {
     fn create_args((config, notify): (&'static Config, ChannelRef<Readings>)) -> Self {
         OneWireSensor {
-            config: config,
-            notify: notify,
+            config,
+            notify,
         }
     }
 }
@@ -67,7 +71,7 @@ impl OneWireSensor {
         r
     }
 
-    fn read_sensor(&self, n: &str) -> Result<f32, TemplogError> {
+    fn read_sensor(&self, n: &str) -> Result<f32> {
         lazy_static! {
             // multiline
             static ref THERM_RE: regex::Regex = regex::Regex::new("(?m).* YES\n.*t=(.*)\n").unwrap();
@@ -78,22 +82,23 @@ impl OneWireSensor {
         let mut s = String::new();
         File::open(path)?.read_to_string(&mut s)?;
         let caps = THERM_RE.captures(&s).ok_or_else(|| {
-                TemplogError::new("Bad sensor contents match")
+                anyhow!("Bad sensor contents match {}", &s)
             })?;
         let v = caps.get(1).ok_or_else(|| {
-                TemplogError::new("Bad field contents match")
-            })?.as_str();
+                anyhow!("Bad sensor contents match {}", &s)
+            })?;
 
-        Ok(f32::from_str(v)?)
+        f32::from_str(v.into()).context("Sensor reading isn't a number")
     }
 
-    fn sensor_names(&self) -> Result<Vec<String>, TemplogError> {
+    fn sensor_names(&self) -> Result<Vec<String>> {
         // TODO: needs to handle multiple busses.
         let mut path = PathBuf::from(&self.config.sensor_base_dir);
         path.push("w1_master_slaves");
 
-        let f = BufReader::new(File::open(path)?);
-        let s = f.lines().collect::<Result<Vec<String>, io::Error>>()?;
+        let f = BufReader::new(File::open(path).context("Failed opening w1 device list")?);
+        let s = f.lines().collect::<Result<Vec<String>, io::Error>>()
+            .context("Failed reading w1 device list")?;
         Ok(s)
     }
 }
@@ -118,8 +123,8 @@ impl Actor for TestSensor {
 impl ActorFactoryArgs<(&'static Config, ChannelRef<Readings>)> for TestSensor {
     fn create_args((config, notify): (&'static Config, ChannelRef<Readings>)) -> Self {
         TestSensor {
-            config: config,
-            notify: notify,
+            config,
+            notify,
         }
     }
 }
@@ -133,7 +138,7 @@ impl TestSensor {
         r
     }
 
-    fn try_read(filename: &str) -> Result<f32, TemplogError> {
+    fn try_read(filename: &str) -> Result<f32> {
         let mut s = String::new();
         File::open(filename)?.read_to_string(&mut s)?;
         Ok(s.trim().parse::<f32>()?)

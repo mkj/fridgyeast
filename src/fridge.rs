@@ -1,10 +1,3 @@
-// TODO:
-// - riker
-//   - use monotonic clock
-//   - timer.rs should use rx.recv_timeout(next_time) instead of rx.try_recv()
-//       and then could remove cfg.frequency_millis
-use std;
-
 use std::time::{Duration,Instant};
 use riker::actors::*;
 
