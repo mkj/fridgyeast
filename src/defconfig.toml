@@ -14,3 +14,8 @@ ambient_name = "missingambient"
 fridge_name = "28-0000042c6dbb"
 wort_name = "28-0000042cccc4" # was fridge
 internal_temperature = "/sys/class/thermal/thermal_zone0/temp"
+
+session_secret = "Put a real secret here"
+
+# a list of strings sessionids
+allowed_sessions = []

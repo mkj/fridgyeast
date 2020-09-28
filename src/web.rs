@@ -1,6 +1,9 @@
 
+use std::time::Duration;
 
-use anyhow::Result;
+use crate::Config;
+use tide::sessions::Session;
+use anyhow::{Result,anyhow};
 
 use riker::actors::*;
 use riker_patterns::ask::ask;
@@ -8,18 +11,29 @@ use futures::future::RemoteHandle;
 
 use serde::{Serialize,Deserialize};
 
-
-
 use tide::utils::After;
 use tide::{Response, StatusCode};
 
 use crate::fridge;
 use crate::params::Params;
 
+const AUTH_COOKIE: &str = "fridgeyeast-auth";
+
 #[derive(Clone)]
 struct WebState {
-    sys: riker::system::ActorSystem,
+    sys: ActorSystem,
     fridge: ActorRef<fridge::FridgeMsg>,
+    config: Config,
+}
+
+impl WebState {
+    fn new(sys: &ActorSystem, fridge: ActorRef<fridge::FridgeMsg>, config: &Config) -> Self {
+        WebState {
+            sys: sys.clone(),
+            fridge,
+            config: config.clone(),
+        }
+    }
 }
 
 #[derive(askama::Template,Serialize)]
@@ -73,16 +87,18 @@ struct SetPage<'a> {
     yesnoinputs: Vec<YesNoInput>,
 }
 
-async fn handle_set<'a>(req: tide::Request<WebState>) -> tide::Result<SetPage<'a>> {
+async fn handle_set<'a>(req: tide::Request<WebState>) -> tide::Result<Response> {
     let s = req.state();
     let p: RemoteHandle<Params> = ask(&s.sys, &s.fridge, fridge::GetParams);
 
+    let ses: &Session = req.ext().ok_or_else(|| anyhow!("Missing session"))?;
+
     let mut s = SetPage {
         params: p.await,
-        csrf_blob: "csrfblah",
-        allowed: true,
+        csrf_blob: "unused", // hopefully SameSite=Strict is enough for now
+        allowed: s.config.allowed_sessions.contains(ses.id()),
         email: "matt@ucc",
-        cookie_hash: "oof",
+        cookie_hash: ses.id(),
 
         numinputs: vec![],
         yesnoinputs: vec![],
@@ -95,16 +111,17 @@ async fn handle_set<'a>(req: tide::Request<WebState>) -> tide::Result<SetPage<'a
     s.numinputs.push(NumInput::new("fridge_range_lower", "Lower range", "°", 1.0, 0));
     s.numinputs.push(NumInput::new("fridge_range_upper", "Upper range", "°", 1.0, 0));
 
-    Ok(s)
-}
+    let r = askama_tide::into_response(&s, "html");
 
-#[derive(Deserialize)]
-struct Update {
-    csrf_blob: String,
-    params: Params,
+    Ok(r)
 }
 
 async fn handle_update(mut req: tide::Request<WebState>) -> tide::Result<> {
+    #[derive(Deserialize)]
+    struct Update {
+        params: Params,
+    }
+
     debug!("got handle_update");
     let update: Update = req.body_json().await.or_else(|e| {
         debug!("failed decoding {:?}", e);
@@ -123,14 +140,9 @@ async fn handle_update(mut req: tide::Request<WebState>) -> tide::Result<> {
 
 }
 
-pub async fn listen_http(sys: &riker::system::ActorSystem,
-    fridge: ActorRef<fridge::FridgeMsg>) -> Result<()> {
-
-
-    let mut server = tide::with_state(WebState {
-        sys: sys.clone(),
-        fridge,
-    });
+pub async fn listen_http(sys: &ActorSystem, fridge: ActorRef<fridge::FridgeMsg>, config: &Config) -> Result<()> {
+    let ws = WebState::new(sys, fridge, config);
+    let mut server = tide::with_state(ws);
 
     // Make it return a http error's string as the body.
     // https://github.com/http-rs/tide/issues/614
@@ -141,6 +153,14 @@ pub async fn listen_http(sys: &riker::system::ActorSystem,
         }
         Ok(res)
     }));
+
+    // just use the id for auth, cookie will be small
+    server.with(tide::sessions::SessionMiddleware::new(
+        tide::sessions::CookieStore::new(),
+        config.session_secret.as_bytes(),
+    )
+    .with_session_ttl(Some(Duration::from_secs(3600*24*365*100))) // ~100 years
+    .with_cookie_name(AUTH_COOKIE));
 
     // url handlers
     server.at("/").get(handle_set);

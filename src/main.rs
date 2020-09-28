@@ -7,8 +7,9 @@ extern crate slog_term;
 #[macro_use] 
 extern crate lazy_static;
 
+
 use crate::slog::Drain;
-use anyhow::{Result};
+use anyhow::Result;
 
 mod config;
 mod sensor;
@@ -24,19 +25,27 @@ use structopt::StructOpt;
 use crate::config::Config;
 
 fn run(args: Opt) -> Result<()> {
+
     let mut cf = config::Config::load(&args.config)?;
     cf.debug = args.debug;
     cf.testmode = args.test;
     cf.nowait = args.nowait;
+    cf.dryrun = args.dryrun;
 
+    if cf.testmode {
+        info!("Running in test mode")
+    }
+    if cf.dryrun {
+        info!("Running in dry run mode")
+    }
+
+    // make it static
     let cf : &'static Config = Box::leak(Box::new(cf));
 
     let mut riker_cfg = riker::load_config();
-
     // default seems to be no filter, we'll override it
-    debug!("log filter is {:?}", riker_cfg.get_array("log.filter"));
     if riker_cfg.get_array("log.filter").is_err() {
-        riker_cfg.set("log.filter", vec!("hyper::", "reqwest::", "rustls::")).unwrap();
+        //riker_cfg.set("log.filter", vec!("rustls::")).unwrap();
     }
 
     if riker_cfg.get::<String>("log.level").is_err() {
@@ -48,14 +57,19 @@ fn run(args: Opt) -> Result<()> {
         }
     }
 
+    // Start everything up
     let sys = SystemBuilder::new()
-                .cfg(riker_cfg)
-                .create().unwrap();
+    .name("fridgeyeast")
+    .log(make_logger())
+    .cfg(riker_cfg)
+    .create().unwrap();
+    debug!("Running in debug mode");
 
     let fridge = sys.actor_of_args::<fridge::Fridge, _>("fridge", &cf)?;
 
-    let w = web::listen_http(&sys, fridge.clone());
+    let w = web::listen_http(&sys, fridge.clone(), &cf);
     async_std::task::block_on(w)?;
+    // Webserver waits listening forever
     Ok(())
 }
 
@@ -80,6 +94,10 @@ struct Opt {
     /// Skip initial fridge wait
     #[structopt(long)]
     nowait: bool,
+
+    /// Read real sensors but don't touch the fridge
+    #[structopt(long)]
+    dryrun: bool,
 
     /// Print default config (customise in local.toml)
     #[structopt(long)]
@@ -126,27 +144,24 @@ fn handle_args() -> Opt {
 // }
 
 fn setup_log() -> slog_scope::GlobalLoggerGuard {
-    let plain = slog_term::PlainSyncDecorator::new(std::io::stdout());
-    let log = slog::Logger::root(
-        slog_term::FullFormat::new(plain)
-        .build().fuse(), slog_o!()
-    );
-
+    let log = make_logger();
     let guard = slog_scope::set_global_logger(log);
     guard
 }
 
+fn make_logger() -> slog::Logger {
+    let plain = slog_term::PlainSyncDecorator::new(std::io::stdout());
+    slog::Logger::root(
+        slog_term::FullFormat::new(plain)
+        .build().fuse(), slog_o!()
+        )
+}
+
 
 fn main() -> Result<()> {
-    // guard needs to remain live
+    // Create an initial logger to use until riker starts
     let _log_guard = setup_log();
 
     let args = handle_args();
-    // setup_log(args.debug);
-    //env_logger::init().unwrap();
-
-    info!("wort-templog");
-    debug!("debug mode");
-
     run(args)
 }

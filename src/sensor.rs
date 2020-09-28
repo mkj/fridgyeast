@@ -20,7 +20,6 @@ pub struct OneWireSensor {
     notify: ChannelRef<Readings>,
 }
 
-// #[derive(Clone)]
 pub struct TestSensor {
     config: &'static Config,
     notify: ChannelRef<Readings>,
@@ -36,7 +35,15 @@ impl Actor for OneWireSensor {
             _ctx: &Context<Self::Msg>,
             _msg: Self::Msg,
             _sender: Sender) {
-        self.notify.tell(Publish{msg: self.get_readings(), topic: "readings".into()}, None);
+        let r = self.get_readings();
+        match r {
+            Ok(r) => {
+                self.notify.tell(Publish{msg: r, topic: "readings".into()}, None);
+            },
+            Err(e) => {
+                warn!("Failed reading sensor: {}", e);
+            }
+        }
     }
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
@@ -55,20 +62,19 @@ impl ActorFactoryArgs<(&'static Config, ChannelRef<Readings>)> for OneWireSensor
 }
 
 impl OneWireSensor {
-    fn get_readings(&self) -> Readings {
+    fn get_readings(&self) -> Result<Readings> {
         let mut r = Readings::new();
 
-        if let Ok(names) = self.sensor_names() {
-            for n in &names {
-                match self.read_sensor(n) {
-                    Ok(s) => r.add(n, s),
-                    Err(e) => debug!("Error reading sensors {}: {}", n, e)
-                }
+        let names = self.sensor_names()?;
+        for n in &names {
+            match self.read_sensor(n) {
+                Ok(s) => r.add(n, s),
+                Err(e) => debug!("Error reading sensors {}: {}", n, e)
             }
         }
 
         debug!("sensor step {:?}", r);
-        r
+        Ok(r)
     }
 
     fn read_sensor(&self, n: &str) -> Result<f32> {
@@ -110,11 +116,18 @@ impl Actor for TestSensor {
             _ctx: &Context<Self::Msg>,
             _msg: Self::Msg,
             _sender: Sender) {
-        self.notify.tell(Publish{msg: self.get_readings(), topic: "readings".into()}, None);
+        let r = self.get_readings();
+        match r {
+            Ok(r) => {
+                self.notify.tell(Publish{msg: r, topic: "readings".into()}, None);
+            },
+            Err(e) => {
+                warn!("Failed reading sensor: {}", e);
+            }
+        }
     }
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        info!("pre_start testsensor readings");
         let dur = Duration::new(self.config.sensor_sleep,0);
         ctx.schedule(Duration::from_millis(0), dur, ctx.myself(), None, SendReading);
     }
@@ -130,12 +143,12 @@ impl ActorFactoryArgs<(&'static Config, ChannelRef<Readings>)> for TestSensor {
 }
 
 impl TestSensor {
-    fn get_readings(&self) -> Readings {
+    fn get_readings(&self) -> Result<Readings> {
         let mut r = Readings::new();
         r.add("ambient", 31.2);
-        r.add("wort", Self::try_read("test_wort.txt").unwrap_or_else(|_| 18.0));
-        r.add("fridge", Self::try_read("test_fridge.txt").unwrap_or_else(|_| 20.0));
-        r
+        r.add(&self.config.wort_name, Self::try_read("test_wort.txt").unwrap_or_else(|_| 18.0));
+        r.add(&self.config.fridge_name, Self::try_read("test_fridge.txt").unwrap_or_else(|_| 20.0));
+        Ok(r)
     }
 
     fn try_read(filename: &str) -> Result<f32> {

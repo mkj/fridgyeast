@@ -74,13 +74,16 @@ impl StepIntegrator {
     pub fn turn(&mut self, on: bool) {
         self.trim();
 
-        if self.on_periods.is_empty() {
-            self.on_periods.push( Period { start: Instant::now(), end: None });
-            return;
-        }
+        let currently_on = match self.on_periods.last() {
+            Some(l) => l.end.is_none(),
+            None => {
+                self.on_periods.push( Period { start: Instant::now(), end: None });
+                return;
+            },
 
-        let current_on = self.on_periods.last().unwrap().end.is_none();
-        if on == current_on {
+        };
+
+        if on == currently_on {
             // state is unchanged
             return;
         }

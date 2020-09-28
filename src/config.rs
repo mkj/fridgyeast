@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use serde::{Serialize,Deserialize};
 use anyhow::{Context, anyhow, Result, Error};
 
@@ -20,6 +21,10 @@ pub struct Config {
     pub wort_name: String,
     pub internal_temperature: String,
 
+    // TODO move this outside
+    pub session_secret: String,
+    pub allowed_sessions: HashSet<String>,
+
     // runtime parameters usually from the command line
     // need to be set in default()
     #[serde(skip_serializing)]
@@ -27,6 +32,9 @@ pub struct Config {
 
     #[serde(skip_serializing)]
     pub testmode: bool,
+
+    #[serde(skip_serializing)]
+    pub dryrun: bool,
 
     #[serde(skip_serializing)]
     pub nowait: bool,
@@ -42,6 +50,7 @@ impl Config {
         c.set_default("debug", false)?;
         c.set_default("testmode", false)?;
         c.set_default("nowait", false)?;
+        c.set_default("dryrun", false)?;
         Ok(c)
     }
 

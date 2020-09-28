@@ -23,7 +23,6 @@ function Model(initial_params, csrf_blob, save_allowed) {
         self.emit("status", "Saving...")
 
         const post_json = {}
-        post_json.csrf_blob = self.csrf_blob
         post_json.params = self.params
         console.log(post_json)
 

@@ -83,7 +83,7 @@ impl Receive<Params> for Fridge {
                 p: Params,
                 sender: Sender) {
         self.params = p;
-        println!("fridge set_params {:?}", self.params);
+        debug!("fridge set_params {:?}", self.params);
 
         let res = self.params.save(self.config);
 
@@ -95,7 +95,7 @@ impl Receive<Params> for Fridge {
         // ... and return it
         let res = res.map_err(|e| e.to_string());
         if let Some(s) = sender {
-            s.try_tell(res, Some(ctx.myself().into())).unwrap_or_else(|_| {
+            s.try_tell(res, None).unwrap_or_else(|_| {
                 error!("This shouldn't happen, failed sending params");
             })
         }
@@ -118,11 +118,11 @@ impl Receive<Tick> for Fridge {
 impl Receive<GetParams> for Fridge {
     type Msg = FridgeMsg; // cruft
     fn receive(&mut self,
-                ctx: &Context<Self::Msg>,
+                _ctx: &Context<Self::Msg>,
                 _: GetParams,
                 sender: Sender) {
         if let Some(s) = sender {
-            s.try_tell(self.params.clone(), Some(ctx.myself().into())).unwrap_or_else(|_| {
+            s.try_tell(self.params.clone(), None).unwrap_or_else(|_| {
                 error!("This shouldn't happen, failed sending params");
             })
         }
@@ -167,7 +167,7 @@ impl ActorFactoryArgs<&'static Config> for Fridge {
 
 impl Fridge {
     fn make_output(config: &Config) -> FridgeOutput {
-        if config.testmode {
+        if config.testmode || config.dryrun {
             FridgeOutput::Fake
         } else {
             let pin = Pin::new(config.fridge_gpio_pin.into());
@@ -272,6 +272,8 @@ impl Fridge {
             }
         } else {
             let mut turn_on = false;
+            // TODO can use if let Some(t) = ... && ...
+            // once https://github.com/rust-lang/rust/issues/53667 is done
             if self.temp_wort.is_some() && !self.params.nowort {
                 // use the wort temperature
                 let t = self.temp_wort.unwrap();
