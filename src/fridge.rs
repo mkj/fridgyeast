@@ -154,7 +154,7 @@ impl ActorFactoryArgs<&'static Config> for Fridge {
             wort_valid_time: Instant::now() - Duration::new(config.fridge_wort_invalid_time, 100),
             integrator: StepIntegrator::new(Duration::new(1, 0)),
             output: Self::make_output(&config),
-            often_tooearly: NotTooOften::new(120),
+            often_tooearly: NotTooOften::new(300),
         };
 
         if config.nowait {

@@ -17,8 +17,6 @@ use tide::{Response, StatusCode};
 use crate::fridge;
 use crate::params::Params;
 
-const AUTH_COOKIE: &str = "fridgeyeast-auth";
-
 #[derive(Clone)]
 struct WebState {
     sys: ActorSystem,
@@ -122,12 +120,10 @@ async fn handle_update(mut req: tide::Request<WebState>) -> tide::Result<> {
         params: Params,
     }
 
-    debug!("got handle_update");
     let update: Update = req.body_json().await.or_else(|e| {
-        debug!("failed decoding {:?}", e);
+        debug!("failed decoding update: {:?}", e);
         Err(e)
         })?;
-    debug!("got params {:?}", update.params);
 
     // send the params to the fridge
     let s = req.state();
@@ -137,7 +133,6 @@ async fn handle_update(mut req: tide::Request<WebState>) -> tide::Result<> {
     p.await
     .map(|_| "Updated".into())
     .map_err(|e| tide::http::Error::from_str(StatusCode::InternalServerError, e))
-
 }
 
 fn until_2038() -> Result<Duration> {
@@ -169,17 +164,17 @@ pub async fn listen_http(sys: &ActorSystem, fridge: ActorRef<fridge::FridgeMsg>,
         config.session_secret.as_bytes(),
     )
     .with_session_ttl(Some(until_2038()?))
-    .with_cookie_name(AUTH_COOKIE));
+    .with_cookie_name(&config.auth_cookie));
 
     // url handlers
     server.at("/").get(handle_set);
     server.at("/update").post(handle_update);
 
-    server.listen(
-        tide_rustls::TlsListener::build()
+    let conf = tide_rustls::TlsListener::build()
             .addrs(":::4433")
             .cert(std::env::var("TIDE_CERT_PATH").unwrap_or("testcert.pem".to_string()))
-            .key(std::env::var("TIDE_KEY_PATH").unwrap_or("testkey.pem".to_string()))
-        ).await?;
+            .key(std::env::var("TIDE_KEY_PATH").unwrap_or("testkey.pem".to_string()));
+
+    server.listen(conf).await?;
     Ok(())
 }

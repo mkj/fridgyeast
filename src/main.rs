@@ -1,15 +1,17 @@
 #[macro_use]
 extern crate slog;
+use slog::{Drain,Logger};
+// let us use normal logging macros
 #[macro_use]
 extern crate slog_scope;
-extern crate slog_term;
+use std::io;
+
 
 #[macro_use] 
 extern crate lazy_static;
 
-
-use crate::slog::Drain;
-use anyhow::Result;
+use anyhow::{Result,Context};
+use daemonize::Daemonize;
 
 mod config;
 mod sensor;
@@ -24,14 +26,59 @@ use structopt::StructOpt;
 
 use crate::config::Config;
 
-fn run(args: Opt) -> Result<()> {
+fn open_logfile() -> Result<std::fs::File> {
+    let f = std::fs::OpenOptions::new()
+    .create(true)
+    .append(true)
+    .open("fridgyeast.log").context("Error opening logfile")?;
+    Ok(f)
+}
 
+fn setup_logging(args: &Args) -> Result<(slog::Logger, slog_scope::GlobalLoggerGuard)> {
+
+    let level = if args.debug {
+        slog::Level::Debug
+    } else {
+        slog::Level::Info
+    };
+
+    fn ts(io: &mut dyn io::Write) -> io::Result<()> {
+        write!(io, "{}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"))
+    }
+
+    let logger = if args.daemon {
+        // log to file
+        let decorator = slog_term::PlainSyncDecorator::new(open_logfile()?);
+        let drain = slog_term::FullFormat::new(decorator).use_custom_timestamp(ts).build()
+        .filter_level(level)
+        // .ignore_res() because we don't want to panic in ENOSPC etc
+        .ignore_res();
+        slog::Logger::root(drain, o!())
+    } else {
+        // log to terminal
+        let decorator = slog_term::PlainSyncDecorator::new(std::io::stdout());
+        let drain = slog_term::FullFormat::new(decorator).use_custom_timestamp(ts).build()
+        .filter_level(level)
+        .ignore_res();
+        slog::Logger::root(drain, o!())
+    };
+
+    let scope_guard = slog_scope::set_global_logger(logger.clone());
+    slog_stdlog::init().unwrap();
+    Ok((logger, scope_guard))
+}
+
+fn run(args: &Args, logger: Logger) -> Result<()> {
+    // load config, make it static
     let mut cf = config::Config::load(&args.config)?;
     cf.debug = args.debug;
     cf.testmode = args.test;
     cf.nowait = args.nowait;
     cf.dryrun = args.dryrun;
+    let cf : &'static Config = Box::leak(Box::new(cf));
 
+    info!("Started fridgyeast. pid {}", std::process::id());
+    debug!("Running in debug mode");
     if cf.testmode {
         info!("Running in test mode")
     }
@@ -39,44 +86,46 @@ fn run(args: Opt) -> Result<()> {
         info!("Running in dry run mode")
     }
 
-    // make it static
-    let cf : &'static Config = Box::leak(Box::new(cf));
+    // daemon before threads are created
+    if args.daemon {
+        let errfile = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("fridgyeast.log").context("Error opening logfile")?;
+        let outfile = errfile.try_clone().context("Error opening err logfile")?;
+        let dize = Daemonize::new()
+        // param file is relative for now
+        .working_directory(std::env::current_dir()?)
+        .pid_file("fridgyeast.pid")
+        .stdout(outfile)
+        .stderr(errfile)
+        .exit_action(|| {
+            //daemon_channel.read();
+            println!("Running as a daemon");
+        });
 
-    let mut riker_cfg = riker::load_config();
-    // default seems to be no filter, we'll override it
-    if riker_cfg.get_array("log.filter").is_err() {
-        //riker_cfg.set("log.filter", vec!("rustls::")).unwrap();
+        dize.start()
+        .context("Failed daemonising")?;
+        info!("Running daemonised, pid {}", std::process::id());
     }
 
-    if riker_cfg.get::<String>("log.level").is_err() {
-        if cf.debug {
-            riker_cfg.set("log.level", "debug").unwrap();
-            tide::log::with_level(tide::log::LevelFilter::Trace);
-        } else {
-            riker_cfg.set("log.level", "info").unwrap();
-        }
-    }
-
-    // Start everything up
+    // start actor system
     let sys = SystemBuilder::new()
-    .name("fridgeyeast")
-    .log(make_logger())
-    .cfg(riker_cfg)
+    .name("fridgyeast")
+    .log(logger.clone())
     .create().unwrap();
-    debug!("Running in debug mode");
-
     let fridge = sys.actor_of_args::<fridge::Fridge, _>("fridge", &cf)?;
 
+
+    // webserver waits listening forever
     let w = web::listen_http(&sys, fridge.clone(), &cf);
-    async_std::task::block_on(w)?;
-    // Webserver waits listening forever
-    Ok(())
+    async_std::task::block_on(w).context("https listener failed")
 }
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "Wort Temperature", about = "Matt Johnston 2020 matt@ucc.asn.au")]
-struct Opt {
-    /// Replace existing running instance
+struct Args {
+    /// Replace any existing running instance
     #[structopt(long)]
     new: bool,
 
@@ -108,8 +157,8 @@ struct Opt {
     config: String,
 }
 
-fn handle_args() -> Opt {
-    let mut args = Opt::from_args();
+fn handle_args() -> Args {
+    let mut args = Args::from_args();
 
     if args.exampleconfig {
         println!("{}", config::Config::example_toml());
@@ -124,44 +173,15 @@ fn handle_args() -> Opt {
     args
 }
 
-// fn setup_log(debug: bool) {
-//     let loglevel = if debug {
-//        log::LevelFilter::Debug
-//     } else {
-//        log::LevelFilter::Info
-//     };
-
-//     let format = |record: &log::Record| {
-//         let datefmt = "%Y-%m-%d %I:%M:%S %p";
-//             let ts = chrono::Local::now().format(datefmt);
-//         format!("{}: {} - {}", ts, record.level(), record.args())
-//     };
-
-
-//     let mut builder = env_logger::Builder::new();
-//     builder.format(format).filter(Some("wort_templog"), loglevel);
-//     builder.init().unwrap();
-// }
-
-fn setup_log() -> slog_scope::GlobalLoggerGuard {
-    let log = make_logger();
-    let guard = slog_scope::set_global_logger(log);
-    guard
-}
-
-fn make_logger() -> slog::Logger {
-    let plain = slog_term::PlainSyncDecorator::new(std::io::stdout());
-    slog::Logger::root(
-        slog_term::FullFormat::new(plain)
-        .build().fuse(), slog_o!()
-        )
-}
-
-
 fn main() -> Result<()> {
-    // Create an initial logger to use until riker starts
-    let _log_guard = setup_log();
-
     let args = handle_args();
-    run(args)
+    let (logger, _scope_guard) = setup_logging(&args)?;
+    if let Err(e) = run(&args, logger) {
+        println!("Failed starting: {:?}", e);
+        if args.daemon {
+            crit!("Failed starting: {:?}", e);
+            crit!("Exited.");
+        }
+    }
+    Ok(())
 }

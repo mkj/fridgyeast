@@ -47,7 +47,7 @@ impl Actor for OneWireSensor {
     }
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        let dur = Duration::new(self.config.sensor_sleep,0);
+        let dur = Duration::new(self.config.sensor_interval, 0);
         ctx.schedule(Duration::from_millis(0), dur, ctx.myself(), None, SendReading);
     }
 }
@@ -128,7 +128,7 @@ impl Actor for TestSensor {
     }
 
     fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        let dur = Duration::new(self.config.sensor_sleep,0);
+        let dur = Duration::new(self.config.sensor_interval,0);
         ctx.schedule(Duration::from_millis(0), dur, ctx.myself(), None, SendReading);
     }
 }
@@ -148,6 +148,7 @@ impl TestSensor {
         r.add("ambient", 31.2);
         r.add(&self.config.wort_name, Self::try_read("test_wort.txt").unwrap_or_else(|_| 18.0));
         r.add(&self.config.fridge_name, Self::try_read("test_fridge.txt").unwrap_or_else(|_| 20.0));
+        debug!("get_readings {:?}", r);
         Ok(r)
     }
 
