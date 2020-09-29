@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use crate::Config;
 use tide::sessions::Session;
-use anyhow::{Result,anyhow};
+use anyhow::{Result,anyhow,Context};
 
 use riker::actors::*;
 use riker_patterns::ask::ask;
@@ -140,6 +140,15 @@ async fn handle_update(mut req: tide::Request<WebState>) -> tide::Result<> {
 
 }
 
+fn until_2038() -> Result<Duration> {
+    let time_2038 = std::time::UNIX_EPOCH.checked_add(Duration::from_secs(i32::MAX as u64))
+    .ok_or(anyhow!("failed making year 2038"))?;
+    let dur = time_2038.duration_since(std::time::SystemTime::now()).context("unix epoch duration")?;
+    // 100 day leeway for bad clocks
+    let dur = dur - Duration::from_secs(3600*24*100);
+    Ok(dur)
+}
+
 pub async fn listen_http(sys: &ActorSystem, fridge: ActorRef<fridge::FridgeMsg>, config: &Config) -> Result<()> {
     let ws = WebState::new(sys, fridge, config);
     let mut server = tide::with_state(ws);
@@ -159,7 +168,7 @@ pub async fn listen_http(sys: &ActorSystem, fridge: ActorRef<fridge::FridgeMsg>,
         tide::sessions::CookieStore::new(),
         config.session_secret.as_bytes(),
     )
-    .with_session_ttl(Some(Duration::from_secs(3600*24*365*100))) // ~100 years
+    .with_session_ttl(Some(until_2038()?))
     .with_cookie_name(AUTH_COOKIE));
 
     // url handlers
