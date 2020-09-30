@@ -5,8 +5,10 @@ authors = ["Matt Johnston <matt@ucc.asn.au>"]
 edition = "2018"
 
 [patch.crates-io]
-# 0.4 broke running without slog?
-riker = { git = "https://github.com/riker-rs/riker", rev = "2f31854185a5a99cacc3352315d7fae312daec77" }
+# 0.4 broke running without slog?, but awaiting arm to be fixed
+# https://github.com/riker-rs/riker/issues/131
+#riker = { git = "https://github.com/riker-rs/riker", rev = "2f31854185a5a99cacc3352315d7fae312daec77" }
+riker = { path = "../riker" }
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -26,7 +28,7 @@ atomicwrites = "0.2"
 riker = "= 0.4.0"
 riker-patterns = "= 0.4.0"
 structopt = "0.3"
-config = "0.10"
+config = { version = "0.10", features = ["toml"], default-features = false }
 sysfs_gpio = "0.5"
 futures = "0.3"
 
