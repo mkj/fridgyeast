@@ -10,8 +10,7 @@ use std::io;
 #[macro_use] 
 extern crate lazy_static;
 
-use anyhow::{Result,Context};
-use daemonize::Daemonize;
+use anyhow::{Result,Context,bail};
 
 mod config;
 mod sensor;
@@ -34,41 +33,67 @@ fn open_logfile() -> Result<std::fs::File> {
     Ok(f)
 }
 
-fn setup_logging(args: &Args) -> Result<(slog::Logger, slog_scope::GlobalLoggerGuard)> {
+/// Set up logging, either to a logfile or terminal.
+/// When `also_term` is set logging will always be duplicated to a terminal.
+///
+/// Beware that this will leak a global logger, do not call many times with `global` set.
+fn setup_logging(debug: bool, to_term: bool, to_file: bool, global: bool) -> Result<slog::Logger> {
 
-    let level = if args.debug {
+    let level = if debug {
         slog::Level::Debug
     } else {
         slog::Level::Info
     };
 
     fn ts(io: &mut dyn io::Write) -> io::Result<()> {
-        write!(io, "{}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"))
+        write!(io, "{}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f"))
     }
 
-    let logger = if args.daemon {
-        // log to file
-        let decorator = slog_term::PlainSyncDecorator::new(open_logfile()?);
-        let drain = slog_term::FullFormat::new(decorator).use_custom_timestamp(ts).build()
-        .filter_level(level)
-        // .ignore_res() because we don't want to panic in ENOSPC etc
-        .ignore_res();
-        slog::Logger::root(drain, o!())
-    } else {
-        // log to terminal
+    let term_drain = if to_term {
         let decorator = slog_term::PlainSyncDecorator::new(std::io::stdout());
-        let drain = slog_term::FullFormat::new(decorator).use_custom_timestamp(ts).build()
-        .filter_level(level)
-        .ignore_res();
-        slog::Logger::root(drain, o!())
+        Some(slog_term::FullFormat::new(decorator).use_custom_timestamp(ts).build())
+    } else {
+        None
     };
 
-    let scope_guard = slog_scope::set_global_logger(logger.clone());
-    slog_stdlog::init().unwrap();
-    Ok((logger, scope_guard))
+    let file_drain = if to_file {
+        let decorator = slog_term::PlainSyncDecorator::new(open_logfile()?);
+        Some(slog_term::FullFormat::new(decorator).use_custom_timestamp(ts).build())
+    } else {
+        None
+    };
+
+    // .ignore_res() because we don't want to panic in ENOSPC etc
+    let logger = match (file_drain, term_drain) {
+        (Some(f), Some(t)) =>  {
+            let drain = slog::Duplicate(t, f)
+            .filter_level(level)
+            .ignore_res();
+            slog::Logger::root(drain, o!())
+        },
+        (Some(f), None) => {
+            let drain = f.filter_level(level)
+            .ignore_res();
+            slog::Logger::root(drain, o!())
+        }
+        (None, Some(t)) => {
+            let drain = t.filter_level(level)
+            .ignore_res();
+            slog::Logger::root(drain, o!())
+        }
+        _default => bail!("Logger needs file or term")
+    };
+
+    if global {
+        let scope_guard = slog_scope::set_global_logger(logger.clone());
+        slog_stdlog::init().ok();
+        Box::leak(Box::new(scope_guard));
+    }
+
+    Ok(logger)
 }
 
-fn run(args: &Args, logger: Logger) -> Result<()> {
+fn run(args: &Args, logger: &Logger) -> Result<()> {
     // load config, make it static
     let mut cf = config::Config::load(&args.config)?;
     cf.debug = args.debug;
@@ -86,29 +111,6 @@ fn run(args: &Args, logger: Logger) -> Result<()> {
         info!("Running in dry run mode")
     }
 
-    // daemon before threads are created
-    if args.daemon {
-        let errfile = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("fridgyeast.log").context("Error opening logfile")?;
-        let outfile = errfile.try_clone().context("Error opening err logfile")?;
-        let dize = Daemonize::new()
-        // param file is relative for now
-        .working_directory(std::env::current_dir()?)
-        .pid_file("fridgyeast.pid")
-        .stdout(outfile)
-        .stderr(errfile)
-        .exit_action(|| {
-            //daemon_channel.read();
-            println!("Running as a daemon");
-        });
-
-        dize.start()
-        .context("Failed daemonising")?;
-        info!("Running daemonised, pid {}", std::process::id());
-    }
-
     // start actor system
     let sys = SystemBuilder::new()
     .name("fridgyeast")
@@ -116,10 +118,8 @@ fn run(args: &Args, logger: Logger) -> Result<()> {
     .create().unwrap();
     let fridge = sys.actor_of_args::<fridge::Fridge, _>("fridge", &cf)?;
 
-
-    // webserver waits listening forever
     let w = web::listen_http(&sys, fridge.clone(), &cf);
-    async_std::task::block_on(w).context("https listener failed")
+    async_std::task::block_on(w)
 }
 
 #[derive(Debug, StructOpt)]
@@ -128,10 +128,6 @@ struct Args {
     /// Replace any existing running instance
     #[structopt(long)]
     new: bool,
-
-    /// Run in background
-    #[structopt(short = "D", long)]
-    daemon: bool,
 
     #[structopt(short, long)]
     debug: bool,
@@ -175,13 +171,9 @@ fn handle_args() -> Args {
 
 fn main() -> Result<()> {
     let args = handle_args();
-    let (logger, _scope_guard) = setup_logging(&args)?;
-    if let Err(e) = run(&args, logger) {
+    let logger = setup_logging(args.debug, true, true, true)?;
+    if let Err(e) = run(&args, &logger) {
         println!("Failed starting: {:?}", e);
-        if args.daemon {
-            crit!("Failed starting: {:?}", e);
-            crit!("Exited.");
-        }
     }
     Ok(())
 }

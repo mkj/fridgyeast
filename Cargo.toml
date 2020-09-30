@@ -29,7 +29,6 @@ structopt = "0.3"
 config = "0.10"
 sysfs_gpio = "0.5"
 futures = "0.3"
-daemonize = "0.4"
 
 async-std = { version = "1.6", features = ["attributes"] }
 
