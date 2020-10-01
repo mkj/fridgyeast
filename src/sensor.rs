@@ -94,7 +94,7 @@ impl OneWireSensor {
                 anyhow!("Bad sensor contents match {}", &s)
             })?;
 
-        f32::from_str(v.into()).context("Sensor reading isn't a number")
+        Ok(f32::from_str(v.into()).context("Sensor reading isn't a number")? / 1000.)
     }
 
     fn sensor_names(&self) -> Result<Vec<String>> {

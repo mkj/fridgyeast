@@ -98,7 +98,7 @@ async fn handle_set<'a>(req: Request<WebState>) -> tide::Result {
 
 
     let mut s = SetPage {
-        status: status,
+        status,
         csrf_blob: "unused", // hopefully SameSite=Strict is enough for now
         allowed,
         cookie_hash: ses.id(),
