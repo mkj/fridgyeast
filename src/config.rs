@@ -55,12 +55,11 @@ impl Config {
 
     pub fn load(conf_file: &str) -> Result<Self> {
         let mut c = Self::default()?;
-        c.merge(config::File::with_name(conf_file)).or_else(|e| {
-            Err(match e {
+        c.merge(config::File::with_name(conf_file)).map_err(|e| {
+            match e {
                 config::ConfigError::NotFound(_) => anyhow!("Missing config {}", conf_file),
-                // XXX this is ugly, better way?
                 _ => Error::new(e).context(format!("Problem parsing {}", conf_file)),
-            })
+            }
         })?;
         c.merge(config::Environment::with_prefix("TEMPLOG"))
             .context("Failed loading from TEMPLOG_ environment variables")?;

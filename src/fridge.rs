@@ -28,6 +28,8 @@ pub struct Fridge {
     integrator: StepIntegrator,
     output: FridgeOutput,
 
+    have_wakeup: bool,
+
     often_tooearly: NotTooOften,
 }
 
@@ -111,6 +113,7 @@ impl Receive<Tick> for Fridge {
                 ctx: &Context<Self::Msg>,
                 _tick: Tick,
                 _sender: Sender) {
+        self.have_wakeup = false;
         self.tick(ctx);
     }
 }
@@ -155,6 +158,7 @@ impl ActorFactoryArgs<&'static Config> for Fridge {
             integrator: StepIntegrator::new(Duration::new(1, 0)),
             output: Self::make_output(&config),
             often_tooearly: NotTooOften::new(300),
+            have_wakeup: false,
         };
 
         if config.nowait {
@@ -208,11 +212,11 @@ impl Fridge {
         let off_time = Instant::now() - self.last_off_time;
 
         // Or elsewhere?
-        self.integrator.set_limit(Duration::new(self.params.overshoot_delay, 0));
+        self.integrator.set_limit(Duration::from_secs(self.params.overshoot_delay));
 
         // Safety to avoid bad things happening to the fridge motor (?)
         // When it turns off don't start up again for at least FRIDGE_DELAY
-        if !self.on && off_time < Duration::new(self.config.fridge_delay, 0) {
+        if !self.on && off_time < Duration::from_secs(self.config.fridge_delay) {
             self.often_tooearly.and_then(|| info!("fridge skipping, too early"));
             return;
         }
@@ -296,27 +300,18 @@ impl Fridge {
         }
     }
 
-    fn next_wakeup(&self) -> Duration {
-        let millis = 8000; // XXX fixme
-        let dur = Duration::from_millis(millis);
-        dur
-    }
-
-    /// Must be called after every state change. Turns the fridge on/off as required and
-    /// schedules any future wakeups based on the present (new) state
-    /// Examples of wakeups events are
-    /// 
-    ///  * overshoot calculation
-    ///  * minimum fridge-off time
-    ///  * invalid wort timeout
-    /// All specified in next_wakeup()
+    /// Must be called after every state change. 
+    /// Turns the fridge on/off as required and schedules a 
+    /// future wakeup.
     fn tick(&mut self,
         ctx: &Context<<Self as Actor>::Msg>) {
 
         self.compare_temperatures();
 
-        // Sets the next self-wakeup timeout
-        let dur = self.next_wakeup();
-        ctx.schedule_once(dur, ctx.myself(), None, Tick);
+        if !self.have_wakeup {
+            // Arbitrary 10 secs, enough to notice invalid wort or fridge delay
+            ctx.schedule_once(Duration::from_secs(10), ctx.myself(), None, Tick);
+            self.have_wakeup = true;
+        }
     }
 }

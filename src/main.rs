@@ -125,10 +125,6 @@ fn run(args: &Args, logger: &Logger) -> Result<()> {
 #[derive(Debug, StructOpt)]
 #[structopt(name = "Wort Temperature", about = "Matt Johnston 2020 matt@ucc.asn.au")]
 struct Args {
-    /// Replace any existing running instance
-    #[structopt(long)]
-    new: bool,
-
     #[structopt(short, long)]
     debug: bool,
 
