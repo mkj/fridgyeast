@@ -26,22 +26,22 @@
 Wort 
 {% match status.temp_wort %}
  {% when Some with (t) %}
-  {{ t }}° 
+  {{ "{:.1}"|format(t) }}° 
  {% when None %}
   ?
 {% endmatch %}
 Fridge 
 {% match status.temp_fridge %}
  {% when Some with (t) %}
-  {{ t }}° 
+  {{ "{:.1}"|format(t) }}° 
  {% when None %}
   ?
 {% endmatch %}
 Fridge is 
 {% if status.on %}
-on
+On
 {% else %}
-off
+Off
 {% endif %}
 </div>
 

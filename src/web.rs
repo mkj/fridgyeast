@@ -74,7 +74,7 @@ impl YesNoInput {
 }
 
 #[derive(askama::Template)]
-#[template(path="set2.html")]
+#[template(path="set2.html",print="code")]
 struct SetPage<'a> {
     status: fridge::Status,
     csrf_blob: &'a str,

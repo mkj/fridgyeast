@@ -148,8 +148,8 @@ impl TestSensor {
     fn get_readings(&self) -> Result<Readings> {
         let mut r = Readings::new();
         r.add("ambient", 31.2);
-        r.add(&self.config.wort_name, Self::try_read("test_wort.txt").unwrap_or_else(|_| 18.1));
-        r.add(&self.config.fridge_name, Self::try_read("test_fridge.txt").unwrap_or_else(|_| 20.2));
+        r.add(&self.config.wort_name, Self::try_read("test_wort.txt").unwrap_or_else(|_| 18.123));
+        r.add(&self.config.fridge_name, Self::try_read("test_fridge.txt").unwrap_or_else(|_| 20.233));
         debug!("get_readings {:?}", r);
         Ok(r)
     }
