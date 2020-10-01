@@ -122,7 +122,7 @@ fn run(args: &Args, logger: &Logger) -> Result<()> {
     async_std::task::block_on(w)
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(StructOpt)]
 #[structopt(name = "Wort Temperature", about = "Matt Johnston 2020 matt@ucc.asn.au")]
 struct Args {
     #[structopt(short, long)]

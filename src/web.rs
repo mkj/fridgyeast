@@ -21,15 +21,15 @@ use crate::params::Params;
 struct WebState {
     sys: ActorSystem,
     fridge: ActorRef<fridge::FridgeMsg>,
-    config: Config,
+    config: &'static Config,
 }
 
 impl WebState {
-    fn new(sys: &ActorSystem, fridge: ActorRef<fridge::FridgeMsg>, config: &Config) -> Self {
+    fn new(sys: &ActorSystem, fridge: ActorRef<fridge::FridgeMsg>, config: &'static Config) -> Self {
         WebState {
             sys: sys.clone(),
             fridge,
-            config: config.clone(),
+            config,
         }
     }
 }
@@ -80,6 +80,7 @@ struct SetPage<'a> {
     allowed: bool,
     email: &'a str,
     cookie_hash: &'a str,
+    debug: bool,
 
     numinputs: Vec<NumInput>,
     yesnoinputs: Vec<YesNoInput>,
@@ -91,12 +92,17 @@ async fn handle_set<'a>(req: tide::Request<WebState>) -> tide::Result<Response> 
 
     let ses: &Session = req.ext().ok_or_else(|| anyhow!("Missing session"))?;
 
+    let allowed = s.config.allowed_sessions.contains(ses.id());
+
+    debug!("set with session id {} {}", ses.id(), if allowed { "allowed" } else { "not allowed"} );
+
     let mut s = SetPage {
         params: p.await,
         csrf_blob: "unused", // hopefully SameSite=Strict is enough for now
-        allowed: s.config.allowed_sessions.contains(ses.id()),
-        email: "matt@ucc",
+        allowed,
+        email: &s.config.auth_email,
         cookie_hash: ses.id(),
+        debug: s.config.debug,
 
         numinputs: vec![],
         yesnoinputs: vec![],
@@ -144,7 +150,7 @@ fn until_2038() -> Result<Duration> {
     Ok(dur)
 }
 
-pub async fn listen_http(sys: &ActorSystem, fridge: ActorRef<fridge::FridgeMsg>, config: &Config) -> Result<()> {
+pub async fn listen_http(sys: &ActorSystem, fridge: ActorRef<fridge::FridgeMsg>, config: &'static Config) -> Result<()> {
     let ws = WebState::new(sys, fridge, config);
     let mut server = tide::with_state(ws);
 
@@ -164,6 +170,7 @@ pub async fn listen_http(sys: &ActorSystem, fridge: ActorRef<fridge::FridgeMsg>,
         config.session_secret.as_bytes(),
     )
     .with_session_ttl(Some(until_2038()?))
+    .with_same_site_policy(tide::http::cookies::SameSite::Strict)
     .with_cookie_name(&config.auth_cookie));
 
     // url handlers
@@ -172,8 +179,8 @@ pub async fn listen_http(sys: &ActorSystem, fridge: ActorRef<fridge::FridgeMsg>,
 
     let conf = tide_rustls::TlsListener::build()
             .addrs(":::4433")
-            .cert(std::env::var("TIDE_CERT_PATH").unwrap_or("testcert.pem".to_string()))
-            .key(std::env::var("TIDE_KEY_PATH").unwrap_or("testkey.pem".to_string()));
+            .cert(&config.cert_file)
+            .key(&config.key_file);
 
     server.listen(conf).await?;
     Ok(())

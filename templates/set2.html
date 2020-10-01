@@ -43,7 +43,10 @@
 
 <span id="status"></span>
 {% if !allowed %} 
-<span id="mailauth"> <a href="mailto:{{email}}?Subject=Allow%20Templog&body=Hash%20is%20{{cookie_hash}}">Email</a> </span>
+<span id="mailauth"> <a href="mailto:{{email}}?Subject=Allow%20Templog&body=Hash%20is%0a{{cookie_hash}}">Email</a> </span>
+{% endif %}
+{% if debug %}
+Session id <code>{{cookie_hash}}</code>
 {% endif %}
 </span>
 

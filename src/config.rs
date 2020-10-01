@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use serde::Deserialize;
 use anyhow::{Context, anyhow, Result, Error};
 
-#[derive(Deserialize,Debug,Clone)]
+#[derive(Deserialize)]
 pub struct Config {
     // all these config options need to be set in default.toml
     pub fridge_delay: u64,
@@ -13,6 +13,10 @@ pub struct Config {
 
     pub fridge_name: String,
     pub wort_name: String,
+
+    pub auth_email: String,
+    pub cert_file: String,
+    pub key_file: String,
 
     // TODO move this outside
     #[serde(skip_serializing)]

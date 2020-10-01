@@ -9,6 +9,11 @@ fridge_gpio_pin = 17
 fridge_name = "28-0000042c6dbb"
 wort_name = "28-0000042cccc4"
 
+# mailto: link for adding session ids uses this address
+auth_email = "you@example.com"
+cert_file = "fridgyeast-fullchain.pem"
+key_file = "fridgyeast-privkey.pem"
+
 session_secret = "Put a real secret here"
 
 # a list of strings sessionids
