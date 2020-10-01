@@ -78,7 +78,6 @@ struct SetPage<'a> {
     params: Params,
     csrf_blob: &'a str,
     allowed: bool,
-    email: &'a str,
     cookie_hash: &'a str,
     debug: bool,
 
@@ -86,12 +85,11 @@ struct SetPage<'a> {
     yesnoinputs: Vec<YesNoInput>,
 }
 
-async fn handle_set<'a>(req: tide::Request<WebState>) -> tide::Result<Response> {
+async fn handle_set<'a>(req: tide::Request<WebState>) -> tide::Result {
     let s = req.state();
     let p: RemoteHandle<Params> = ask(&s.sys, &s.fridge, fridge::GetParams);
 
     let ses: &Session = req.ext().ok_or_else(|| anyhow!("Missing session"))?;
-
     let allowed = s.config.allowed_sessions.contains(ses.id());
 
     debug!("set with session id {} {}", ses.id(), if allowed { "allowed" } else { "not allowed"} );
@@ -100,7 +98,6 @@ async fn handle_set<'a>(req: tide::Request<WebState>) -> tide::Result<Response> 
         params: p.await,
         csrf_blob: "unused", // hopefully SameSite=Strict is enough for now
         allowed,
-        email: &s.config.auth_email,
         cookie_hash: ses.id(),
         debug: s.config.debug,
 
@@ -120,7 +117,51 @@ async fn handle_set<'a>(req: tide::Request<WebState>) -> tide::Result<Response> 
     Ok(r)
 }
 
-async fn handle_update(mut req: tide::Request<WebState>) -> tide::Result<> {
+#[derive(askama::Template)]
+#[template(path="register.html")]
+struct Register<'a> {
+    allowed: bool,
+    debug: bool,
+    known: bool,
+    email: &'a str,
+    cookie_hash: &'a str,
+}
+
+async fn handle_logout<'a>(mut req: tide::Request<WebState>) -> tide::Result {
+    req.session_mut().destroy();
+    Ok(tide::Redirect::new("/").into())
+}
+
+async fn handle_register<'a>(mut req: tide::Request<WebState>) -> tide::Result {
+    // This complication is because Android Firefox doesn't send samesite: Strict 
+    // cookies when you navigate to an url in the location bar.
+    // https://bugzilla.mozilla.org/show_bug.cgi?id=1573860
+    let s = req.state().clone();
+    let ses: &mut Session = req.session_mut();
+    let known = ses.get_raw("known");
+    ses.insert("known", true)?;
+    let allowed = s.config.allowed_sessions.contains(ses.id());
+
+    let r = Register {
+        email: &s.config.auth_email,
+        cookie_hash: ses.id(),
+        known: known.is_some(),
+        debug: s.config.debug,
+        allowed,
+    };
+    let r = askama_tide::into_response(&r, "html");
+    Ok(r)
+}
+
+async fn handle_update(mut req: tide::Request<WebState>) -> tide::Result {
+    let s = req.state().clone();
+    let ses: &mut Session = req.session_mut();
+    let allowed = s.config.allowed_sessions.contains(ses.id());
+
+    if !allowed {
+        return Err(tide::http::Error::from_str(403, "Not registered"))
+    }
+
     #[derive(Deserialize)]
     struct Update {
         params: Params,
@@ -132,7 +173,6 @@ async fn handle_update(mut req: tide::Request<WebState>) -> tide::Result<> {
         })?;
 
     // send the params to the fridge
-    let s = req.state();
     let p: RemoteHandle<Result<(),String>> = ask(&s.sys, &s.fridge, update.params);
 
     // check it succeeded
@@ -166,16 +206,20 @@ pub async fn listen_http(sys: &ActorSystem, fridge: ActorRef<fridge::FridgeMsg>,
 
     // just use the id for auth, cookie will be small
     server.with(tide::sessions::SessionMiddleware::new(
-        tide::sessions::CookieStore::new(),
-        config.session_secret.as_bytes(),
-    )
-    .with_session_ttl(Some(until_2038()?))
-    .with_same_site_policy(tide::http::cookies::SameSite::Strict)
-    .with_cookie_name(&config.auth_cookie));
+            tide::sessions::CookieStore::new(),
+            config.session_secret.as_bytes(),
+        )
+        .with_session_ttl(Some(until_2038()?))
+        .with_same_site_policy(tide::http::cookies::SameSite::Strict)
+        .with_cookie_name(&config.auth_cookie)
+        .without_save_unchanged()
+    );
 
     // url handlers
     server.at("/").get(handle_set);
     server.at("/update").post(handle_update);
+    server.at("/register").get(handle_register);
+    server.at("/logout").get(handle_logout);
 
     let conf = tide_rustls::TlsListener::build()
             .addrs(":::4433")

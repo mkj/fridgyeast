@@ -1,0 +1,30 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1,maximum-scale=1,minimum-scale=1">
+<meta name="theme-color" content="#fff">
+
+<style type="text/css">
+{% include "set.css" %}
+</style>
+
+<html>
+<body>
+<span id="mailauth"> <a href="mailto:{{email}}?Subject=Allow%20Templog&body=Hash%20is%0a{{cookie_hash}}">Email</a> </span>
+<p>Session id <code>{{cookie_hash}}</code></p>
+{% if allowed %}
+<p>Is already allowed</p>
+{% else %}
+<p>Not already allowed</p>
+{% endif %}
+{% if debug %}
+{% if known %}
+<p>Session is already set</p>
+{% else %}
+<p>Session is not set yet</p>
+{% endif %}
+{% endif %}
+</body>
+</html>
+
