@@ -9,10 +9,11 @@ use riker::actors::*;
 use riker_patterns::ask::ask;
 use futures::future::RemoteHandle;
 
+
 use serde::{Serialize,Deserialize};
 
 use tide::utils::After;
-use tide::{Response, StatusCode};
+use tide::{Request,Response,StatusCode};
 
 use crate::fridge;
 use crate::params::Params;
@@ -75,7 +76,7 @@ impl YesNoInput {
 #[derive(askama::Template)]
 #[template(path="set2.html")]
 struct SetPage<'a> {
-    params: Params,
+    status: fridge::Status,
     csrf_blob: &'a str,
     allowed: bool,
     cookie_hash: &'a str,
@@ -85,17 +86,19 @@ struct SetPage<'a> {
     yesnoinputs: Vec<YesNoInput>,
 }
 
-async fn handle_set<'a>(req: tide::Request<WebState>) -> tide::Result {
+async fn handle_set<'a>(req: Request<WebState>) -> tide::Result {
     let s = req.state();
-    let p: RemoteHandle<Params> = ask(&s.sys, &s.fridge, fridge::GetParams);
+    let p: RemoteHandle<fridge::Status> = ask(&s.sys, &s.fridge, fridge::GetStatus);
+    let status = p.await;
 
     let ses: &Session = req.ext().ok_or_else(|| anyhow!("Missing session"))?;
     let allowed = s.config.allowed_sessions.contains(ses.id());
 
     debug!("set with session id {} {}", ses.id(), if allowed { "allowed" } else { "not allowed"} );
 
+
     let mut s = SetPage {
-        params: p.await,
+        status: status,
         csrf_blob: "unused", // hopefully SameSite=Strict is enough for now
         allowed,
         cookie_hash: ses.id(),
@@ -127,12 +130,12 @@ struct Register<'a> {
     cookie_hash: &'a str,
 }
 
-async fn handle_logout<'a>(mut req: tide::Request<WebState>) -> tide::Result {
+async fn handle_logout<'a>(mut req: Request<WebState>) -> tide::Result {
     req.session_mut().destroy();
     Ok(tide::Redirect::new("/").into())
 }
 
-async fn handle_register<'a>(mut req: tide::Request<WebState>) -> tide::Result {
+async fn handle_register<'a>(mut req: Request<WebState>) -> tide::Result {
     // This complication is because Android Firefox doesn't send samesite: Strict 
     // cookies when you navigate to an url in the location bar.
     // https://bugzilla.mozilla.org/show_bug.cgi?id=1573860
@@ -153,7 +156,7 @@ async fn handle_register<'a>(mut req: tide::Request<WebState>) -> tide::Result {
     Ok(r)
 }
 
-async fn handle_update(mut req: tide::Request<WebState>) -> tide::Result {
+async fn handle_update(mut req: Request<WebState>) -> tide::Result {
     let s = req.state().clone();
     let ses: &mut Session = req.session_mut();
     let allowed = s.config.allowed_sessions.contains(ses.id());
@@ -179,6 +182,17 @@ async fn handle_update(mut req: tide::Request<WebState>) -> tide::Result {
     p.await
     .map(|_| "Updated".into())
     .map_err(|e| tide::http::Error::from_str(StatusCode::InternalServerError, e))
+}
+
+async fn handle_status(req: Request<WebState>) -> tide::Result {
+    let s = req.state();
+    let s: RemoteHandle<fridge::Status> = ask(&s.sys, &s.fridge, fridge::GetStatus);
+    let status = s.await;
+    let resp = Response::builder(200)
+    .body(tide::Body::from_json(&status)?)
+    .content_type(tide::http::mime::JSON)
+    .build();
+    Ok(resp)
 }
 
 fn until_2038() -> Result<Duration> {
@@ -220,6 +234,7 @@ pub async fn listen_http(sys: &ActorSystem, fridge: ActorRef<fridge::FridgeMsg>,
     server.at("/update").post(handle_update);
     server.at("/register").get(handle_register);
     server.at("/logout").get(handle_logout);
+    server.at("/status").get(handle_status);
 
     let conf = tide_rustls::TlsListener::build()
             .addrs(":::4433")

@@ -51,7 +51,7 @@ function Model(initial_params, csrf_blob, save_allowed) {
 // Presenter
 (function() {
 
-const initial_params = {{params|json|safe}}
+const initial_params = {{status.params|json|safe}}
 const numinputs = {{numinputs|json|safe}}
 const yesnoinputs = {{yesnoinputs|json|safe}}
 

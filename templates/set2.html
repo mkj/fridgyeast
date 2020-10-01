@@ -22,6 +22,29 @@
 
 <body>
 
+<div>
+Wort 
+{% match status.temp_wort %}
+ {% when Some with (t) %}
+  {{ t }}° 
+ {% when None %}
+  ?
+{% endmatch %}
+Fridge 
+{% match status.temp_fridge %}
+ {% when Some with (t) %}
+  {{ t }}° 
+ {% when None %}
+  ?
+{% endmatch %}
+Fridge is 
+{% if status.on %}
+on
+{% else %}
+off
+{% endif %}
+</div>
+
 <section id="paramlist">
 {% for input in self.yesnoinputs %}
 {{ input|safe }}

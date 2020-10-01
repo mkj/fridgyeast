@@ -2,6 +2,7 @@ use std::time::{Duration,Instant};
 use riker::actors::*;
 
 use sysfs_gpio::{Direction, Pin};
+use serde::Serialize;
 
 use crate::params::Params;
 use super::config::Config;
@@ -13,9 +14,17 @@ use super::types::*;
 pub struct Tick;
 
 #[derive(Debug,Clone)]
-pub struct GetParams;
+pub struct GetStatus;
 
-#[actor(Params, Tick, Readings, GetParams)]
+#[derive(Debug,Clone,Serialize)]
+pub struct Status {
+    pub params: Params,
+    pub on: bool,
+    pub temp_wort: Option<f32>,
+    pub temp_fridge: Option<f32>,
+}
+
+#[actor(Params, Tick, Readings, GetStatus)]
 pub struct Fridge {
     params: Params,
     config: &'static Config,
@@ -85,7 +94,7 @@ impl Receive<Params> for Fridge {
                 p: Params,
                 sender: Sender) {
         self.params = p;
-        debug!("fridge set_params {:?}", self.params);
+        info!("New params: {:?}", self.params);
 
         let res = self.params.save(self.config);
 
@@ -118,14 +127,20 @@ impl Receive<Tick> for Fridge {
     }
 }
 
-impl Receive<GetParams> for Fridge {
+impl Receive<GetStatus> for Fridge {
     type Msg = FridgeMsg; // cruft
     fn receive(&mut self,
                 _ctx: &Context<Self::Msg>,
-                _: GetParams,
+                _: GetStatus,
                 sender: Sender) {
         if let Some(s) = sender {
-            s.try_tell(self.params.clone(), None).unwrap_or_else(|_| {
+            let status = Status {
+                params: self.params.clone(),
+                on: self.on,
+                temp_wort: self.temp_wort,
+                temp_fridge: self.temp_fridge,
+            };
+            s.try_tell(status, None).unwrap_or_else(|_| {
                 error!("This shouldn't happen, failed sending params");
             })
         }
@@ -160,6 +175,8 @@ impl ActorFactoryArgs<&'static Config> for Fridge {
             often_tooearly: NotTooOften::new(300),
             have_wakeup: false,
         };
+
+        info!("Starting with params: {:?}", f.params);
 
         if config.nowait {
             f.last_off_time -= Duration::new(config.fridge_delay, 1);
@@ -217,7 +234,8 @@ impl Fridge {
         // Safety to avoid bad things happening to the fridge motor (?)
         // When it turns off don't start up again for at least FRIDGE_DELAY
         if !self.on && off_time < Duration::from_secs(self.config.fridge_delay) {
-            self.often_tooearly.and_then(|| info!("fridge skipping, too early"));
+            self.often_tooearly.and_then(|| info!("Fridge skipping, too early ({} seconds left)",
+                self.config.fridge_delay - off_time.as_secs()));
             return;
         }
 
@@ -255,7 +273,7 @@ impl Fridge {
                 let t = self.temp_wort.unwrap();
                 // use the wort temperature
                 if t - overshoot < self.params.fridge_setpoint {
-                    info!("wort has cooled enough, {temp}º (overshoot {overshoot}º = {factor} × {percent}%)",
+                    info!("Wort has cooled enough, {temp}º (overshoot {overshoot}º = {factor} × {percent}%)",
                          temp = t, overshoot = overshoot,
                          factor = self.params.overshoot_factor,
                          percent = on_ratio*100.0);
@@ -264,9 +282,9 @@ impl Fridge {
             } else if let Some(t) = self.temp_fridge {
                 // use the fridge temperature
                 if t < fridge_min {
-                    warn!("fridge off fallback, fridge {}, min {}", t, fridge_min);
+                    warn!("Fridge off fallback, fridge {}, min {}", t, fridge_min);
                     if self.temp_wort.is_none() {
-                        warn!("wort has been invalid for {:?}", Instant::now() - self.wort_valid_time);
+                        warn!("Wort has been invalid for {:?}", Instant::now() - self.wort_valid_time);
                     }
                     turn_off = true;
                 }
@@ -289,7 +307,7 @@ impl Fridge {
 
             if let Some(t) = self.temp_fridge {
                 if t >= fridge_max {
-                    warn!("fridge too hot fallback, fridge {}°, max {}°", t, fridge_max);
+                    warn!("Fridge too hot fallback, fridge {}°, max {}°", t, fridge_max);
                     turn_on = true;
                 }
             }
