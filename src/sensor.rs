@@ -103,8 +103,10 @@ impl OneWireSensor {
         path.push("w1_master_slaves");
 
         let f = BufReader::new(File::open(path).context("Failed opening w1 device list")?);
-        let s = f.lines().collect::<Result<Vec<String>, io::Error>>()
+        let mut s = f.lines().collect::<Result<Vec<String>, io::Error>>()
             .context("Failed reading w1 device list")?;
+        // limit to ds18b20, family code 28
+        s.retain(|n| n.starts_with("28-"));
         Ok(s)
     }
 }
