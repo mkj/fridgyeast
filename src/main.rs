@@ -1,11 +1,14 @@
 #[macro_use]
 extern crate slog;
+use async_std::io::ReadExt;
+use futures::FutureExt;
 use slog::{Drain,Logger};
 // let us use normal logging macros
 #[macro_use]
 extern crate slog_scope;
 use std::io;
 
+use futures::select;
 
 #[macro_use] 
 extern crate lazy_static;
@@ -93,6 +96,22 @@ fn setup_logging(debug: bool, to_term: bool, to_file: bool, global: bool) -> Res
     Ok(logger)
 }
 
+async fn wait_exit() -> Result<()> {
+    // see https://github.com/stjepang/async-io/blob/master/examples/unix-signal.rs
+    use async_io::Async;
+    use std::os::unix::net::UnixStream;
+
+    let (w, mut r) = Async::<UnixStream>::pair()?;
+    signal_hook::pipe::register(signal_hook::SIGINT, w.get_ref().try_clone()?)?;
+    signal_hook::pipe::register(signal_hook::SIGTERM, w.get_ref().try_clone()?)?;
+    debug!("Waiting for exit signal");
+
+    // Receive a byte that indicates the Ctrl-C signal occurred.
+    r.read_exact(&mut [0]).await?;
+    info!("Exiting with signal");
+    Ok(())
+}
+
 fn run(args: &Args, logger: &Logger) -> Result<()> {
     // load config, make it static
     let mut cf = config::Config::load(&args.config)?;
@@ -118,8 +137,24 @@ fn run(args: &Args, logger: &Logger) -> Result<()> {
     .create().unwrap();
     let fridge = sys.actor_of_args::<fridge::Fridge, _>("fridge", &cf)?;
 
-    let w = web::listen_http(&sys, fridge.clone(), &cf);
-    async_std::task::block_on(w)
+    let webserver = web::listen_http(&sys, fridge.clone(), &cf);
+
+    let webserver = webserver.fuse();
+    let exit = wait_exit().fuse();
+    futures::pin_mut!(webserver, exit);
+
+    let allwaiting = async {
+        select! {
+            w = webserver => w,
+            _ = exit => Ok(()),
+        }
+    };
+
+    let res = async_std::task::block_on(allwaiting);
+
+    async_std::task::block_on(sys.shutdown())?;
+
+    res
 }
 
 #[derive(StructOpt)]

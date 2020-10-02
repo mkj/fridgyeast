@@ -31,6 +31,8 @@ structopt = "0.3"
 config = { version = "0.10", features = ["toml"], default-features = false }
 sysfs_gpio = "0.5"
 futures = "0.3"
+signal-hook = "0.1"
+async-io = "1.1"
 
 async-std = { version = "1.6", features = ["attributes"] }
 

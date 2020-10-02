@@ -96,6 +96,9 @@ impl Receive<Params> for Fridge {
         self.params = p;
         info!("New params: {:?}", self.params);
 
+        // quickly update the fridge for real world interactivity
+        self.tick(ctx);
+
         let res = self.params.save(self.config);
 
         if let Err(e) = &res {
@@ -110,8 +113,6 @@ impl Receive<Params> for Fridge {
                 error!("This shouldn't happen, failed sending params");
             })
         }
-
-        self.tick(ctx);
 
     }
 }
@@ -155,7 +156,9 @@ enum FridgeOutput {
 
 impl Drop for Fridge {
     fn drop(&mut self) {
-        // safety fridge off 
+        if self.on {
+            info!("Fridge turns off at shutdown");
+        }
         self.turn(false);
     }
 }
@@ -217,6 +220,9 @@ impl Fridge {
             }),
             FridgeOutput::Fake => debug!("fridge turns {}", if on {"on"} else {"off"}),
         }
+        if !on {
+            self.last_off_time = Instant::now();
+        }
         self.on = on;
         self.integrator.turn(on)
     }
@@ -226,16 +232,18 @@ impl Fridge {
         let fridge_min = self.params.fridge_setpoint - self.params.fridge_range_lower;
         let fridge_max = self.params.fridge_setpoint - self.params.fridge_range_upper;
         let wort_max = self.params.fridge_setpoint + self.params.fridge_difference;
-        let off_time = Instant::now() - self.last_off_time;
+        let off_duration = Instant::now() - self.last_off_time;
+
+        debug!("off_duration {:?}", off_duration);
 
         // Or elsewhere?
         self.integrator.set_limit(Duration::from_secs(self.params.overshoot_delay));
 
         // Safety to avoid bad things happening to the fridge motor (?)
         // When it turns off don't start up again for at least FRIDGE_DELAY
-        if !self.on && off_time < Duration::from_secs(self.config.fridge_delay) {
+        if !self.on && off_duration < Duration::from_secs(self.config.fridge_delay) {
             self.often_tooearly.and_then(|| info!("Fridge skipping, too early ({} seconds left)",
-                self.config.fridge_delay - off_time.as_secs()));
+                self.config.fridge_delay - off_duration.as_secs()));
             return;
         }
 
