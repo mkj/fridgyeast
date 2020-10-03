@@ -3,6 +3,7 @@ use riker::actors::*;
 
 use sysfs_gpio::{Direction, Pin};
 use serde::Serialize;
+use serde_json::ser::to_string_pretty;
 
 use crate::params::Params;
 use super::config::Config;
@@ -96,7 +97,8 @@ impl Receive<Params> for Fridge {
                 p: Params,
                 sender: Sender) {
         self.params = p;
-        info!("New params: {:?}", self.params);
+        let pp = to_string_pretty(&self.params).expect("Failed serialising params");
+        info!("New params: {}", pp);
 
         // quickly update the fridge for real world interactivity
         self.tick(ctx);
@@ -183,7 +185,8 @@ impl ActorFactoryArgs<&'static Config> for Fridge {
             have_wakeup: false,
         };
 
-        info!("Starting with params: {:?}", f.params);
+        let pp = to_string_pretty(&f.params).expect("Failed serialising params");
+        info!("Starting with params: {}", pp);
 
         if config.nowait {
             f.last_off_time -= Duration::new(config.fridge_delay, 1);

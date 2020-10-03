@@ -87,7 +87,7 @@ struct SetPage<'a> {
     yesnoinputs: Vec<YesNoInput>,
 }
 
-async fn handle_set<'a>(req: Request<WebState>) -> tide::Result {
+async fn handle_set(req: Request<WebState>) -> tide::Result {
     let s = req.state();
     let p: RemoteHandle<fridge::Status> = ask(&s.sys, &s.fridge, fridge::GetStatus);
     let status = p.await;
@@ -138,12 +138,12 @@ struct Register<'a> {
     cookie_hash: &'a str,
 }
 
-async fn handle_logout<'a>(mut req: Request<WebState>) -> tide::Result {
+async fn handle_logout(mut req: Request<WebState>) -> tide::Result {
     req.session_mut().destroy();
     Ok(tide::Redirect::new("/").into())
 }
 
-async fn handle_register<'a>(mut req: Request<WebState>) -> tide::Result {
+async fn handle_register(mut req: Request<WebState>) -> tide::Result {
     // This complication is because Android Firefox doesn't send samesite: Strict 
     // cookies when you navigate to an url in the location bar.
     // https://bugzilla.mozilla.org/show_bug.cgi?id=1573860
