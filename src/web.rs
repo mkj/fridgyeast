@@ -97,10 +97,10 @@ async fn handle_set<'a>(req: Request<WebState>) -> tide::Result {
 
     debug!("set with session id {} {}", ses.id(), if allowed { "allowed" } else { "not allowed"} );
 
-    let recent_off_time = if status.off_duration < status.fridge_delay/41 {
-        Some((status.off_duration * 41).as_short_str())
-    } else {
+    let recent_off_time = if status.on {
         None
+    } else {
+        Some(status.off_duration.as_short_str())
     };
 
 
