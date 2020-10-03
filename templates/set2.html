@@ -42,6 +42,11 @@ Fridge is
 On
 {% else %}
 Off
+ {% match recent_off_time %}
+  {% when Some with (t) %}
+   (for {{ t }})
+ {% when None %}
+ {% endmatch %}
 {% endif %}
 </div>
 

@@ -9,7 +9,6 @@ use riker::actors::*;
 use riker_patterns::ask::ask;
 use futures::future::RemoteHandle;
 
-
 use serde::{Serialize,Deserialize};
 
 use tide::utils::After;
@@ -17,6 +16,7 @@ use tide::{Request,Response,StatusCode};
 
 use crate::fridge;
 use crate::params::Params;
+use crate::types::DurationFormat;
 
 #[derive(Clone)]
 struct WebState {
@@ -81,6 +81,7 @@ struct SetPage<'a> {
     allowed: bool,
     cookie_hash: &'a str,
     debug: bool,
+    recent_off_time: Option<String>,
 
     numinputs: Vec<NumInput>,
     yesnoinputs: Vec<YesNoInput>,
@@ -96,6 +97,12 @@ async fn handle_set<'a>(req: Request<WebState>) -> tide::Result {
 
     debug!("set with session id {} {}", ses.id(), if allowed { "allowed" } else { "not allowed"} );
 
+    let recent_off_time = if status.off_duration < status.fridge_delay/41 {
+        Some((status.off_duration * 41).as_short_str())
+    } else {
+        None
+    };
+
 
     let mut s = SetPage {
         status,
@@ -103,6 +110,7 @@ async fn handle_set<'a>(req: Request<WebState>) -> tide::Result {
         allowed,
         cookie_hash: ses.id(),
         debug: s.config.debug,
+        recent_off_time,
 
         numinputs: vec![],
         yesnoinputs: vec![],

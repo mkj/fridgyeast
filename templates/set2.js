@@ -135,7 +135,7 @@ function setup_numinput(input) {
     el.querySelector(".button_down").addEventListener("mousedown", downpress)
     el.querySelector(".button_down").addEventListener("touchstart", downpress)
 
-    el.querySelector(".oldvalue").textContent = fixed_value(name, model.params[name]) + " " + input.unit
+    el.querySelector(".oldvalue").textContent = fixed_value(name, model.params[name]) + input.unit
     set_numinput_value(el, name, model.params[name])
 }
 

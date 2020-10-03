@@ -28,7 +28,6 @@ impl Readings {
 }
 
 /// Call closures with a rate limit. Useful for log message ratelimiting
-#[derive(Clone)]
 pub struct NotTooOften {
     last: Cell<Instant>,
     limit: Duration,
@@ -127,4 +126,63 @@ impl StepIntegrator {
         }
     }
 }
+
+pub trait DurationFormat {
+    fn as_short_str(&self) -> String;
+}
+
+impl DurationFormat for Duration {
+    /// Returns a short string representing the [`Duration`]
+    /// ```
+    /// use std::time::Duration;
+    /// use crate::types::DurationFormat;
+    /// let d = Duration::from_secs(3600*49+607);
+    /// assert_eq!(d.as_short_str(), "2d1h10m7s");
+    /// ```
+    fn as_short_str(&self) -> String
+    {
+        let left = self.as_secs();
+        let mut parts = vec![];
+
+        // TODO this could be a loop instead?
+        let days = left / (60*60*24);
+        if days > 0 {
+            parts.push(format!("{}d", days));
+        }
+        let left = left - days*(60*60*24);
+
+        let hours = left / (60*60);
+        if hours > 0 || !parts.is_empty() {
+            parts.push(format!("{}h", hours));
+        }
+        let left = left - hours*(60*60);
+
+        let mins = left / 60;
+        if mins > 0 || !parts.is_empty() {
+            parts.push(format!("{}m", mins));
+        }
+        let left = left - mins*60;
+
+        parts.push(format!("{}s", left));
+        parts.concat()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn duration_format() {
+        use std::time::Duration;
+        use crate::types::DurationFormat;
+        let d = Duration::from_secs(3600*49+607);
+        assert_eq!(d.as_short_str(), "2d1h10m7s");
+        let d = Duration::from_secs(3660);
+        assert_eq!(d.as_short_str(), "1h1m0s");
+        let d = Duration::from_secs(5);
+        assert_eq!(d.as_short_str(), "5s");
+        let d = Duration::from_millis(20);
+        assert_eq!(d.as_short_str(), "0s");
+    }
+}
+
 

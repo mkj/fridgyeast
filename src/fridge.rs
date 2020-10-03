@@ -22,6 +22,8 @@ pub struct Status {
     pub on: bool,
     pub temp_wort: Option<f32>,
     pub temp_fridge: Option<f32>,
+    pub off_duration: Duration,
+    pub fridge_delay: Duration,
 }
 
 #[actor(Params, Tick, Readings, GetStatus)]
@@ -140,6 +142,8 @@ impl Receive<GetStatus> for Fridge {
                 on: self.on,
                 temp_wort: self.temp_wort,
                 temp_fridge: self.temp_fridge,
+                off_duration: Instant::now() - self.last_off_time,
+                fridge_delay: Duration::from_secs(self.config.fridge_delay),
             };
             s.try_tell(status, None).unwrap_or_else(|_| {
                 error!("This shouldn't happen, failed sending params");
