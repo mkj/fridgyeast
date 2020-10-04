@@ -1,6 +1,9 @@
 use std::time::{Duration,Instant};
 use riker::actors::*;
 
+use anyhow::Result;
+use anyhow::Context as AHContext;
+
 use sysfs_gpio::{Direction, Pin};
 use serde::Serialize;
 use serde_json::ser::to_string_pretty;
@@ -74,7 +77,6 @@ impl Actor for Fridge {
 }
 
 impl Receive<Readings> for Fridge {
-    type Msg = FridgeMsg; // cruft
     fn receive(&mut self,
                 ctx: &Context<Self::Msg>,
                 r: Readings,
@@ -91,7 +93,6 @@ impl Receive<Readings> for Fridge {
 }
 
 impl Receive<Params> for Fridge {
-    type Msg = FridgeMsg; // cruft
     fn receive(&mut self,
                 ctx: &Context<Self::Msg>,
                 p: Params,
@@ -122,7 +123,6 @@ impl Receive<Params> for Fridge {
 }
 
 impl Receive<Tick> for Fridge {
-    type Msg = FridgeMsg; // cruft
     fn receive(&mut self,
                 ctx: &Context<Self::Msg>,
                 _tick: Tick,
@@ -133,7 +133,6 @@ impl Receive<Tick> for Fridge {
 }
 
 impl Receive<GetStatus> for Fridge {
-    type Msg = FridgeMsg; // cruft
     fn receive(&mut self,
                 _ctx: &Context<Self::Msg>,
                 _: GetStatus,
@@ -171,6 +170,9 @@ impl Drop for Fridge {
 
 impl ActorFactoryArgs<&'static Config> for Fridge {
     fn create_args(config: &'static Config) -> Self {
+        // XXX how can we handle failing actor creation better?
+        let output = Self::make_output(&config).unwrap();
+
         let mut f = Fridge { 
             config,
             params: Params::load(&config),
@@ -180,7 +182,7 @@ impl ActorFactoryArgs<&'static Config> for Fridge {
             last_off_time: Instant::now(),
             wort_valid_time: Instant::now() - Duration::new(config.fridge_wort_invalid_time, 100),
             integrator: StepIntegrator::new(Duration::new(1, 0)),
-            output: Self::make_output(&config),
+            output,
             often_tooearly: NotTooOften::new(300),
             have_wakeup: false,
         };
@@ -197,16 +199,15 @@ impl ActorFactoryArgs<&'static Config> for Fridge {
 }
 
 impl Fridge {
-    fn make_output(config: &Config) -> FridgeOutput {
+    fn make_output(config: &Config) -> Result<FridgeOutput> {
         if config.testmode || config.dryrun {
-            FridgeOutput::Fake
+            Ok(FridgeOutput::Fake)
         } else {
             let pin = Pin::new(config.fridge_gpio_pin.into());
-            // XXX better error handling?
-            pin.export().expect("Exporting fridge gpio failed");
-            // 'Low' is direction=out+value=0
-            pin.set_direction(Direction::Low).expect("Fridge gpio direction failed");
-            FridgeOutput::Gpio(pin)
+            pin.export().context("Exporting fridge GPIO failed")?;
+            // Direction::Low is direction=out+value=0
+            pin.set_direction(Direction::Low).context("Exporting fridge gpio failed")?;
+            Ok(FridgeOutput::Gpio(pin))
         }
     }
 

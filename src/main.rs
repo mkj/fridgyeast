@@ -10,9 +10,6 @@ use std::io;
 
 use futures::select;
 
-#[macro_use] 
-extern crate lazy_static;
-
 use anyhow::{Result,Context,bail};
 
 mod config;
@@ -91,6 +88,8 @@ fn setup_logging(debug: bool, to_term: bool, to_file: bool, global: bool) -> Res
         Box::leak(Box::new(scope_guard));
     }
 
+    log_panics::init();
+
     Ok(logger)
 }
 
@@ -119,7 +118,6 @@ fn run(args: &Args, logger: &Logger) -> Result<()> {
     cf.dryrun = args.dryrun;
     let cf : &'static Config = Box::leak(Box::new(cf));
 
-    info!("Started fridgyeast. pid {}", std::process::id());
     debug!("Running in debug mode");
     if cf.testmode {
         info!("Running in test mode")
@@ -133,8 +131,7 @@ fn run(args: &Args, logger: &Logger) -> Result<()> {
     .name("fridgyeast")
     .log(logger.clone())
     .create().unwrap();
-    let fridge = sys.actor_of_args::<fridge::Fridge, _>("fridge", &cf)?;
-
+    let fridge = sys.actor_of_args::<fridge::Fridge, _>("fridge", &cf).context("Failed starting fridge")?;
     let webserver = web::listen_http(&sys, fridge.clone(), &cf);
 
     let webserver = webserver.fuse();
@@ -200,11 +197,18 @@ fn handle_args() -> Args {
     args
 }
 
+fn get_version() -> String {
+    let hgid = include_str!(concat!(env!("OUT_DIR"), "/hg-revid.txt"));
+    format!("hg version {}", hgid)
+}
+
 fn main() -> Result<()> {
     let args = handle_args();
     let logger = setup_logging(args.debug, true, true, true)?;
+    info!("fridgyeast {}. pid {}", get_version(), std::process::id());
+
     if let Err(e) = run(&args, &logger) {
-        println!("Failed starting: {:?}", e);
+        crit!("Failed running: {:?}", e);
     }
     Ok(())
 }

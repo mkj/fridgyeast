@@ -18,6 +18,7 @@ use super::config::Config;
 pub struct OneWireSensor {
     config: &'static Config,
     notify: ChannelRef<Readings>,
+    therm_re: regex::Regex,
 }
 
 pub struct TestSensor {
@@ -30,7 +31,6 @@ pub struct SendReading;
 
 impl Actor for OneWireSensor {
     type Msg = SendReading;
-
     fn recv(&mut self,
             _ctx: &Context<Self::Msg>,
             _msg: Self::Msg,
@@ -57,6 +57,7 @@ impl ActorFactoryArgs<(&'static Config, ChannelRef<Readings>)> for OneWireSensor
         OneWireSensor {
             config,
             notify,
+            therm_re: regex::Regex::new("(?m).* YES\n.*t=(.*)\n").unwrap(),
         }
     }
 }
@@ -78,16 +79,12 @@ impl OneWireSensor {
     }
 
     fn read_sensor(&self, n: &str) -> Result<f32> {
-        lazy_static! {
-            // multiline
-            static ref THERM_RE: regex::Regex = regex::Regex::new("(?m).* YES\n.*t=(.*)\n").unwrap();
-        }
         let mut path = PathBuf::from(&self.config.sensor_base_dir);
         path.push(n);
         path.push("w1_slave");
         let mut s = String::new();
         File::open(path)?.read_to_string(&mut s)?;
-        let caps = THERM_RE.captures(&s).ok_or_else(|| {
+        let caps = self.therm_re.captures(&s).ok_or_else(|| {
                 anyhow!("Bad sensor contents match {}", &s)
             })?;
         let v = caps.get(1).ok_or_else(|| {
@@ -113,7 +110,6 @@ impl OneWireSensor {
 
 impl Actor for TestSensor {
     type Msg = SendReading;
-
     fn recv(&mut self,
             _ctx: &Context<Self::Msg>,
             _msg: Self::Msg,
