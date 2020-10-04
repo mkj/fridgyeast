@@ -24,8 +24,6 @@ mod web;
 
 use riker::actors::*;
 
-use structopt::StructOpt;
-
 use crate::config::Config;
 
 fn open_logfile() -> Result<std::fs::File> {
@@ -157,35 +155,37 @@ fn run(args: &Args, logger: &Logger) -> Result<()> {
     res
 }
 
-#[derive(StructOpt)]
-#[structopt(name = "Wort Temperature", about = "Matt Johnston 2020 matt@ucc.asn.au")]
+#[derive(argh::FromArgs)]
+/** Wort Temperature
+Matt Johnston 2020 matt@ucc.asn.au */
 struct Args {
-    #[structopt(short, long)]
+    #[argh(switch, short='v')]
+    /// verbose debug logging
     debug: bool,
 
-    /// Use fake sensors etc
-    #[structopt(long)]
+    /// use fake sensors etc
+    #[argh(switch)]
     test: bool,
 
-    /// Skip initial fridge wait
-    #[structopt(long)]
+    /// skip initial fridge wait
+    #[argh(switch)]
     nowait: bool,
 
-    /// Read real sensors but don't touch the fridge
-    #[structopt(long)]
+    /// read real sensors but don't touch the fridge
+    #[argh(switch, short='n')]
     dryrun: bool,
 
-    /// Print default config (customise in local.toml)
-    #[structopt(long)]
+    /// print default config (customise in local.toml)
+    #[argh(switch, short='e')]
     exampleconfig: bool,
 
-    /// Config file
-    #[structopt(short = "c", long, default_value = "local.toml")]
+    /// config file
+    #[argh(option, short = 'c', default = "\"local.toml\".to_string()")]
     config: String,
 }
 
 fn handle_args() -> Args {
-    let mut args = Args::from_args();
+    let mut args: Args = argh::from_env();
 
     if args.exampleconfig {
         println!("{}", config::Config::example_toml());

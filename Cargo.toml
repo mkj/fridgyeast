@@ -27,7 +27,7 @@ atomicwrites = "0.2"
 # 0.4.1 doesn't work on rpi https://github.com/riker-rs/riker/pull/132
 riker = "= 0.4.0"
 riker-patterns = "= 0.4.0"
-structopt = "0.3"
+argh = "0.1"
 config = { version = "0.10", features = ["toml"], default-features = false }
 sysfs_gpio = "0.5"
 futures = "0.3"
