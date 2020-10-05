@@ -245,7 +245,7 @@ impl Fridge {
         debug!("off_duration {:?}", off_duration);
 
         // Or elsewhere?
-        self.integrator.set_limit(Duration::from_secs(self.params.overshoot_delay));
+        self.integrator.set_limit(Duration::from_secs(self.config.overshoot_delay));
 
         // Safety to avoid bad things happening to the fridge motor (?)
         // When it turns off don't start up again for at least FRIDGE_DELAY
@@ -279,9 +279,9 @@ impl Fridge {
 
         if self.on {
             let on_time = self.integrator.integrate().as_secs() as f32;
-            let on_ratio = on_time / self.params.overshoot_delay as f32;
+            let on_ratio = on_time / self.config.overshoot_delay as f32;
 
-            let overshoot = self.params.overshoot_factor as f32 * on_ratio;
+            let overshoot = self.config.overshoot_factor as f32 * on_ratio;
             debug!("on_percent {}, overshoot {}", on_ratio * 100.0, overshoot);
 
             let mut turn_off = false;
@@ -291,7 +291,7 @@ impl Fridge {
                 if t - overshoot < self.params.fridge_setpoint {
                     info!("Wort has cooled enough, {temp}º (overshoot {overshoot}º = {factor} × {percent}%)",
                          temp = t, overshoot = overshoot,
-                         factor = self.params.overshoot_factor,
+                         factor = self.config.overshoot_factor,
                          percent = on_ratio*100.0);
                     turn_off = true;
                 }

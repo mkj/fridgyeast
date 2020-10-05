@@ -18,8 +18,6 @@ use super::config::Config;
 pub struct Params {
     pub fridge_setpoint: f32,
     pub fridge_difference: f32,
-    pub overshoot_delay: u64,
-    pub overshoot_factor: f32,
     pub running: bool,
     pub nowort: bool,
     pub fridge_range_lower: f32,
@@ -31,8 +29,6 @@ impl Params {
         Params {
             fridge_setpoint: 18.0,
             fridge_difference: 0.2,
-            overshoot_delay: 720, // 12 minutes
-            overshoot_factor: 1.0,
             running: false,
             nowort: false,
             fridge_range_lower: 3.0,
