@@ -203,8 +203,9 @@ fn main() -> Result<()> {
     let logger = setup_logging(args.debug, true, true, true)?;
     info!("fridgyeast hg version {}. pid {}", types::get_hg_version(), std::process::id());
 
-    if let Err(e) = run(&args, &logger) {
-        crit!("Failed running: {:?}", e);
+    match run(&args, &logger) {
+        Err(e) => crit!("Failed running: {:?}", e),
+        Ok(_) => info!("Done."),
     }
     Ok(())
 }

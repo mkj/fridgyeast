@@ -40,8 +40,7 @@ riker = "= 0.4.1"
 riker-patterns = "= 0.4.0"
 
 # tide must match version used in tide-rustls, so have strict versions here
-# avoid logger feature
-tide = { version = "= 0.13.0", default-features = false, features = ["h1-server", "sessions"] }
+tide = "= 0.13.0"
 tide-rustls = "= 0.1.2"
 
 # askama depends on tide version too
