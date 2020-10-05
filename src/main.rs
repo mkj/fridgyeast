@@ -93,6 +93,7 @@ fn setup_logging(debug: bool, to_term: bool, to_file: bool, global: bool) -> Res
     Ok(logger)
 }
 
+/// Futures return when SIGINT or SIGTERM happen, compatible with async-std
 async fn wait_exit() -> Result<()> {
     // see https://github.com/stjepang/async-io/blob/master/examples/unix-signal.rs
     use async_io::Async;
@@ -197,15 +198,10 @@ fn handle_args() -> Args {
     args
 }
 
-fn get_version() -> String {
-    let hgid = include_str!(concat!(env!("OUT_DIR"), "/hg-revid.txt"));
-    format!("hg version {}", hgid)
-}
-
 fn main() -> Result<()> {
     let args = handle_args();
     let logger = setup_logging(args.debug, true, true, true)?;
-    info!("fridgyeast {}. pid {}", get_version(), std::process::id());
+    info!("fridgyeast hg version {}. pid {}", types::get_hg_version(), std::process::id());
 
     if let Err(e) = run(&args, &logger) {
         crit!("Failed running: {:?}", e);

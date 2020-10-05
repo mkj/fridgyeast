@@ -28,6 +28,14 @@ pub struct Status {
     pub temp_fridge: Option<f32>,
     pub off_duration: Duration,
     pub fridge_delay: Duration,
+
+    // from config
+    pub overshoot_interval: u64,
+    pub overshoot_factor: f32,
+    pub sensor_interval: u64,
+
+    pub version: &'static str,
+    pub uptime: Duration,
 }
 
 #[actor(Params, Tick, Readings, GetStatus)]
@@ -42,6 +50,7 @@ pub struct Fridge {
     wort_valid_time: Instant,
     integrator: StepIntegrator,
     output: FridgeOutput,
+    started: Instant,
 
     have_wakeup: bool,
 
@@ -145,6 +154,11 @@ impl Receive<GetStatus> for Fridge {
                 temp_fridge: self.temp_fridge,
                 off_duration: Instant::now() - self.last_off_time,
                 fridge_delay: Duration::from_secs(self.config.fridge_delay),
+                overshoot_interval: self.config.overshoot_interval,
+                overshoot_factor: self.config.overshoot_factor,
+                sensor_interval: self.config.sensor_interval,
+                version: get_hg_version(),
+                uptime: Instant::now() - self.started,
             };
             s.try_tell(status, None).unwrap_or_else(|_| {
                 error!("This shouldn't happen, failed sending params");
@@ -181,10 +195,11 @@ impl ActorFactoryArgs<&'static Config> for Fridge {
             temp_fridge: None,
             last_off_time: Instant::now(),
             wort_valid_time: Instant::now() - Duration::new(config.fridge_wort_invalid_time, 100),
-            integrator: StepIntegrator::new(Duration::new(1, 0)),
+            integrator: StepIntegrator::new(Duration::from_secs(config.overshoot_interval)),
             output,
             often_tooearly: NotTooOften::new(300),
             have_wakeup: false,
+            started: Instant::now(),
         };
 
         let pp = to_string_pretty(&f.params).expect("Failed serialising params");
@@ -244,9 +259,6 @@ impl Fridge {
 
         debug!("off_duration {:?}", off_duration);
 
-        // Or elsewhere?
-        self.integrator.set_limit(Duration::from_secs(self.config.overshoot_delay));
-
         // Safety to avoid bad things happening to the fridge motor (?)
         // When it turns off don't start up again for at least FRIDGE_DELAY
         if !self.on && off_duration < Duration::from_secs(self.config.fridge_delay) {
@@ -279,7 +291,7 @@ impl Fridge {
 
         if self.on {
             let on_time = self.integrator.integrate().as_secs() as f32;
-            let on_ratio = on_time / self.config.overshoot_delay as f32;
+            let on_ratio = on_time / self.config.overshoot_interval as f32;
 
             let overshoot = self.config.overshoot_factor as f32 * on_ratio;
             debug!("on_percent {}, overshoot {}", on_ratio * 100.0, overshoot);

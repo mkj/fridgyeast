@@ -7,7 +7,7 @@ pub struct Config {
     // all these config options need to be set in default.toml
     pub fridge_delay: u64,
     pub fridge_wort_invalid_time: u64,
-    pub overshoot_delay: u64,
+    pub overshoot_interval: u64,
     pub overshoot_factor: f32,
 
     pub sensor_base_dir: String,
