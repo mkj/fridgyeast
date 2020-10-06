@@ -11,6 +11,10 @@ edition = "2018"
 #riker = { git = "https://github.com/riker-rs/riker", rev = "2f31854185a5a99cacc3352315d7fae312daec77" }
 riker = { path = "../riker" }
 
+# these disable tide "logger" feature
+tide-rustls = { git = "https://github.com/mkj/tide-rustls", branch = "tide_no_default_features" }
+askama = { git = "https://github.com/djc/askama", rev = "2850f79496afa2c6e796bc7a9407593d2aeca0f6" }
+
 [dependencies]
 anyhow = "1.0"
 log-panics = { version = "2.0", features = ["with-backtrace"] }
@@ -40,14 +44,12 @@ riker = "= 0.4.1"
 riker-patterns = "= 0.4.0"
 
 # tide must match version used in tide-rustls, so have strict versions here
-tide = "= 0.13.0"
-tide-rustls = "= 0.1.2"
+# don't want default logging feature
+tide = { version = "= 0.13.0", default-features = false, features = ["h1-server", "sessions"] }
+tide-rustls = "= 0.1.3-alpha.0"
 
-# askama depends on tide version too
-askama_tide = { git = "https://github.com/djc/askama", rev="a94835d6de0add5f9fd6095bbe96525d8ac2579a" }
-askama = { git = "https://github.com/djc/askama", rev="a94835d6de0add5f9fd6095bbe96525d8ac2579a", features = ["serde-json", "with-tide"] }
-#askama_tide = "0.10"
-#askama = { version = "0.10", features = ["serde-json", "with-tide"] }
+askama = { version = "0.10", features = ["serde-json", "with-tide"] }
+askama_tide = "0.11"
 
 
 [profile.release]
