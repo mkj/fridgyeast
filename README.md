@@ -1,6 +1,6 @@
 ## Brewing Fridge Controller
 
-This is a brewing fridge control program with an integrated web interface.
+This is a beer brewing fridge control program with an integrated web interface.
 
 ### Web Interface
 
@@ -26,7 +26,8 @@ The previous incarnation [wort-templog](https://github.com/mkj/wort-templog)
 was written in Python with the web interface on a separate server. Colocating
 the webserver on the control device reduces the number of moving parts.
 
-It remains to be seen whether this Rust rewrite is more reliable than it's predecessor.
+It remains to be seen whether this Rust rewrite is more reliable than its predecessor.
+Wort temperature control is an important matter!
 
 ### TODO
 
