@@ -32,4 +32,4 @@ It remains to be seen whether this Rust rewrite is more reliable than it's prede
 
 * Improve error handling, particularly panic in riker pre\_start functions
 * Try better temperature control algorithms, take account of fridge air temperature for overshoot
-* Pass through `/.well-known` for letsencrypt cerbot
+* Pass through `/.well-known` for letsencrypt certbot
