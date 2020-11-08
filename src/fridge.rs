@@ -331,9 +331,7 @@ impl Fridge {
                     info!("Wort is too hot {}°, max {}°", t, wort_max);
                     turn_on = true;
                 }
-            } 
-
-            if let Some(t) = self.temp_fridge {
+            } else if let Some(t) = self.temp_fridge {
                 if t >= fridge_max {
                     warn!("Fridge too hot fallback, fridge {}°, max {}°", t, fridge_max);
                     turn_on = true;
