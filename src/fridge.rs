@@ -1,14 +1,17 @@
+#[allow(unused_imports)]
+use {
+    log::{debug, error, info, warn},
+    anyhow::{Result,Context,bail,anyhow},
+};
+
 use async_trait::async_trait;
 use crate::actzero_pubsub::Subscriber;
 use std::time::{Duration,Instant};
 
-#[allow(unused_imports)]
-use log::{debug, info, warn, error};
-use anyhow::{Result,Context};
-
 use act_zero::*;
 use act_zero::runtimes::async_std::spawn_actor;
-
+use act_zero::runtimes::async_std::Timer;
+use act_zero::timer::Tick;
 
 use sysfs_gpio::{Direction, Pin};
 use serde::Serialize;
@@ -19,9 +22,6 @@ use super::config::Config;
 
 use super::sensor;
 use super::types::*;
-
-#[derive(Debug,Clone)]
-pub struct Tick;
 
 #[derive(Debug,Clone)]
 pub struct GetStatus;
@@ -44,7 +44,6 @@ pub struct Status {
     pub uptime: Duration,
 }
 
-//#[actor(Params, Tick, Readings, GetStatus)]
 pub struct Fridge {
     params: Params,
     config: &'static Config,
@@ -58,7 +57,7 @@ pub struct Fridge {
     output: FridgeOutput,
     started: Instant,
 
-    have_wakeup: bool,
+    timer: Timer,
 
     often_tooearly: NotTooOften,
 
@@ -75,7 +74,7 @@ impl Drop for Fridge {
         if self.on {
             info!("Fridge turns off at shutdown");
         }
-        self.turn(false);
+        self.turn_off();
     }
 }
 
@@ -87,9 +86,18 @@ impl Subscriber<Readings> for Fridge {
 }
 
 #[async_trait]
+impl Tick for Fridge {
+    async fn tick(&mut self) -> ActorResult<()> {
+        if self.timer.tick() {
+            self.update();
+        }
+        Produces::ok(())
+    }
+}
+
+#[async_trait]
 impl Actor for Fridge {
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()> {
-
         let pp = to_string_pretty(&self.params).expect("Failed serialising params");
         info!("Starting with params: {}", pp);
 
@@ -106,18 +114,23 @@ impl Actor for Fridge {
         };
 
         // Start the timer going
-        self.tick();
+        self.update();
+        // Arbitrary 10 secs, enough to notice invalid wort or fridge delay
+        self.timer.set_interval_weak(addr.downgrade(), Duration::from_secs(10));
         Produces::ok(())
     }
 
-
+    async fn error(&mut self, error: ActorError) -> bool {
+        debug!("Fridge actor returned error: {:?}", error);
+        false
+    }
 }
 
 impl Fridge {
     pub fn try_new(config: &'static Config) -> Result<Self> {
         let output = Self::make_output(&config)?;
 
-        Ok(Fridge { 
+        let mut f = Fridge { 
             config,
             params: Params::load(&config),
             on: false,
@@ -128,10 +141,15 @@ impl Fridge {
             integrator: StepIntegrator::new(Duration::from_secs(config.overshoot_interval)),
             output,
             often_tooearly: NotTooOften::new(300),
-            have_wakeup: false,
+            timer: Timer::default(),
             started: Instant::now(),
             sensor: None,
-        })
+        };
+
+        // Early check the fridge can turn off
+        f.turn(false).context("Initial fridge turn-off")?;
+
+        Ok(f)
     }
 
     pub async fn add_readings(&mut self, r: Readings) {
@@ -143,7 +161,7 @@ impl Fridge {
             self.wort_valid_time = Instant::now();
         }
 
-        self.tick();
+        self.update();
     }
 
     pub async fn set_params(&mut self, p: Params) -> ActorResult<Result<()>> {
@@ -152,7 +170,7 @@ impl Fridge {
         info!("New params: {}", pp);
 
         // quickly update the fridge for real world interactivity
-        self.tick();
+        self.update();
 
         let res = self.params.save(self.config);
 
@@ -194,30 +212,29 @@ impl Fridge {
 
     fn turn_off(&mut self) {
         info!("Turning fridge off");
-        self.turn(false);
+        self.turn(false).unwrap_or_else(|e| error!("Turning off failed: {}", e));
+        self.last_off_time = Instant::now();
     }
 
     fn turn_on(&mut self) {
         info!("Turning fridge on");
-        self.turn(true);
+        self.turn(true).unwrap_or_else(|e| error!("Turning on failed: {}", e));
     }
 
-    fn turn(&mut self, on: bool) {
+    /// Generally use turn_on()/turn_off() instead.
+    fn turn(&mut self, on: bool) -> Result<()> {
         match self.output {
-            FridgeOutput::Gpio(pin) => pin.set_value(on.into()).unwrap_or_else(|e| {
-                error!("Couldn't change fridge pin to {}: {}", on, e);
-            }),
+            FridgeOutput::Gpio(pin) => pin.set_value(on.into()).context("Couldn't change pin")?,
             FridgeOutput::Fake => debug!("fridge turns {}", if on {"on"} else {"off"}),
         }
-        if !on {
-            self.last_off_time = Instant::now();
-        }
         self.on = on;
-        self.integrator.turn(on)
+        self.integrator.turn(on);
+        Ok(())
     }
 
-    // Turns the fridge off and on
-    fn compare_temperatures(&mut self) {
+    /// Must be called after every state change. 
+    /// Turns the fridge off and on
+    fn update(&mut self) {
         let fridge_min = self.params.fridge_setpoint - self.params.fridge_range_lower;
         let fridge_max = self.params.fridge_setpoint - self.params.fridge_range_upper;
         let wort_max = self.params.fridge_setpoint + self.params.fridge_difference;
@@ -307,34 +324,6 @@ impl Fridge {
             if turn_on {
                 self.turn_on()
             }
-        }
-    }
-
-            // TODO actor
-    /*
-impl Receive<Tick> for Fridge {
-    fn receive(&mut self,
-                ctx: &Context<Self::Msg>,
-                _tick: Tick,
-                _sender: Sender) {
-        self.have_wakeup = false;
-        self.tick(ctx);
-    }
-}
-*/
-
-    /// Must be called after every state change. 
-    /// Turns the fridge on/off as required and schedules a 
-    /// future wakeup.
-    fn tick(&mut self) {
-
-        self.compare_temperatures();
-
-        if !self.have_wakeup {
-            // Arbitrary 10 secs, enough to notice invalid wort or fridge delay
-            // TODO actor
-            //ctx.schedule_once(Duration::from_secs(10), ctx.myself(), None, Tick);
-            self.have_wakeup = true;
         }
     }
 }

@@ -31,7 +31,6 @@ pub struct OneWireSensor {
     timer: Timer,
 }
 
-
 #[async_trait]
 impl Tick for OneWireSensor {
     async fn tick(&mut self) -> ActorResult<()> {

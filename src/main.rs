@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
 use {
-    log::{debug, error, info},
+    log::{debug, error, info, warn},
     anyhow::{Result,Context,bail},
 };
 

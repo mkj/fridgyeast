@@ -181,7 +181,8 @@ async fn handle_update(mut req: Request<WebState>) -> tide::Result {
         })?;
 
     // send the params to the fridge
-    call!(s.fridge.set_params(update.params)).await
+    // note the extra ? is to unwrap the call! itself
+    call!(s.fridge.set_params(update.params)).await?
     .map(|_| "Updated".into())
     .map_err(|e| tide::http::Error::from_str(StatusCode::InternalServerError, e))
 }
