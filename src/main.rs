@@ -4,6 +4,8 @@ use {
     anyhow::{Result,Context,bail},
 };
 
+use simplelog::{CombinedLogger,LevelFilter,TermLogger,WriteLogger,TerminalMode};
+
 use act_zero::*;
 use async_std::io::ReadExt;
 use futures::FutureExt;
@@ -18,14 +20,6 @@ mod web;
 mod actzero_pubsub;
 
 use crate::config::Config;
-
-fn open_logfile() -> Result<std::fs::File> {
-    let f = std::fs::OpenOptions::new()
-    .create(true)
-    .append(true)
-    .open("fridgyeast.log").context("Error opening logfile")?;
-    Ok(f)
-}
 
 /// Futures return when SIGINT or SIGTERM happen, compatible with async-std
 async fn wait_exit() -> Result<()> {
@@ -109,7 +103,33 @@ struct Args {
     config: String,
 }
 
-fn handle_args() -> Args {
+fn open_logfile() -> Result<std::fs::File> {
+    let f = std::fs::OpenOptions::new()
+    .create(true)
+    .append(true)
+    .open("fridgyeast.log").context("Error opening logfile")?;
+    Ok(f)
+}
+
+fn setup_log(debug: bool) -> Result<()> {
+    let level = match debug {
+        true => LevelFilter::Debug,
+        false => LevelFilter::Info,
+    };
+    println!("log level {:?}", level);
+    let logconf = simplelog::ConfigBuilder::new()
+    .set_time_format_str("%Y-%m-%d %H:%M:%S%.3f")
+    .set_time_to_local(true)
+    .build();
+    CombinedLogger::init(
+        vec![
+            TermLogger::new(level, logconf.clone(), TerminalMode::Mixed),
+            WriteLogger::new(level, logconf, open_logfile()?),
+        ]
+    ).context("logging setup failed")
+}
+
+fn handle_args() -> Result<Args> {
     let mut args: Args = argh::from_env();
 
     if args.exampleconfig {
@@ -117,28 +137,18 @@ fn handle_args() -> Args {
         std::process::exit(0);
     }
 
-    let mut builder = env_logger::Builder::from_default_env();
-
-    let level = if args.debug {
-        log::LevelFilter::Debug
-    } else {
-        log::LevelFilter::Info
-    };
-    builder
-    .filter(None, level)
-    .init();
-
+    setup_log(args.debug)?;
 
     if cfg!(not(target_os = "linux")) {
         info!("Forcing --test for non-Linux");
         args.test = true;
     }
 
-    args
+    Ok(args)
 }
 
 fn main() -> Result<()> {
-    let args = handle_args();
+    let args = handle_args()?;
     info!("fridgyeast hg version {}. pid {}", types::get_hg_version(), std::process::id());
 
     match run(&args) {

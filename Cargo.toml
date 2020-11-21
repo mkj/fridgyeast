@@ -28,7 +28,7 @@ config = { version = "0.10", features = ["toml"], default-features = false }
 sysfs_gpio = "0.5"
 
 log = "0.4"
-env_logger = "0.8"
+simplelog = "0.8"
 
 # tide must match version used in tide-rustls, so have strict versions here
 # don't want default logging feature
