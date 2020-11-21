@@ -4,13 +4,6 @@ version = "0.1.0"
 authors = ["Matt Johnston <matt@ucc.asn.au>"]
 edition = "2018"
 
-[patch.crates-io]
-# 0.4 broke running without slog?, but awaiting arm to be fixed
-# 0.4.1 doesn't work on rpi https://github.com/riker-rs/riker/pull/132
-# https://github.com/riker-rs/riker/issues/131
-#riker = { git = "https://github.com/riker-rs/riker", rev = "2f31854185a5a99cacc3352315d7fae312daec77" }
-riker = { path = "../riker" }
-
 [dependencies]
 anyhow = "1.0"
 log-panics = { version = "2.0", features = ["with-backtrace"] }
@@ -26,18 +19,16 @@ futures = "0.3"
 signal-hook = "0.1"
 async-io = "1.1"
 async-std = { version = "1.6", features = ["attributes"] }
+async-trait = "0.1"
+
+act-zero = { version = "0.3", features = ["async-std"] }
 
 config = { version = "0.10", features = ["toml"], default-features = false }
 
 sysfs_gpio = "0.5"
 
-slog = { version = "2.5", features = ["release_max_level_debug"] }
-slog-scope = "4.3"
-slog-term = "2.6"
-slog-stdlog = "4.0"
-
-riker = "= 0.4.1"
-riker-patterns = "= 0.4.1"
+log = "0.4"
+env_logger = "0.8"
 
 # tide must match version used in tide-rustls, so have strict versions here
 # don't want default logging feature

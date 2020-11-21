@@ -188,4 +188,3 @@ mod tests {
 pub fn get_hg_version() -> &'static str {
     include_str!(concat!(env!("OUT_DIR"), "/hg-revid.txt"))
 }
-

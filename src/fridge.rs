@@ -1,8 +1,14 @@
+use async_trait::async_trait;
+use crate::actzero_pubsub::Subscriber;
 use std::time::{Duration,Instant};
-use riker::actors::*;
 
-use anyhow::Result;
-use anyhow::Context as AHContext;
+#[allow(unused_imports)]
+use log::{debug, info, warn, error};
+use anyhow::{Result,Context};
+
+use act_zero::*;
+use act_zero::runtimes::async_std::spawn_actor;
+
 
 use sysfs_gpio::{Direction, Pin};
 use serde::Serialize;
@@ -38,7 +44,7 @@ pub struct Status {
     pub uptime: Duration,
 }
 
-#[actor(Params, Tick, Readings, GetStatus)]
+//#[actor(Params, Tick, Readings, GetStatus)]
 pub struct Fridge {
     params: Params,
     config: &'static Config,
@@ -55,118 +61,9 @@ pub struct Fridge {
     have_wakeup: bool,
 
     often_tooearly: NotTooOften,
+
+    sensor: Option<Addr<dyn Actor>>,
 }
-
-impl Actor for Fridge {
-    type Msg = FridgeMsg;
-    fn recv(&mut self,
-                ctx: &Context<Self::Msg>,
-                msg: Self::Msg,
-                sender: Sender) {
-        // Pass it along to the specific handler
-        self.receive(ctx, msg, sender);
-    }
-
-    fn pre_start(&mut self, ctx: &Context<Self::Msg>) {
-        // Build all the child actors
-        let params_chan : ChannelRef<Params> = channel("params", ctx).unwrap();
-        params_chan.tell(Subscribe {actor: Box::new(ctx.myself()), topic: "params".into()}, None);
-
-        let sensor_chan : ChannelRef<Readings> = channel("readings", ctx).unwrap();
-        sensor_chan.tell(Subscribe {actor: Box::new(ctx.myself()), topic: "readings".into()}, None);
-        if self.config.testmode {
-            ctx.actor_of_args::<sensor::TestSensor, _>("sensor", (self.config, sensor_chan.clone())).unwrap()
-        } else {
-            ctx.actor_of_args::<sensor::OneWireSensor, _>("sensor", (self.config, sensor_chan.clone())).unwrap()
-        };
-
-        // Start the timer going
-        self.tick(ctx);
-    }
-}
-
-impl Receive<Readings> for Fridge {
-    fn receive(&mut self,
-                ctx: &Context<Self::Msg>,
-                r: Readings,
-                _sender: Sender) {
-        self.temp_wort = r.get_temp(&self.config.wort_name);
-        self.temp_fridge = r.get_temp(&self.config.fridge_name);
-
-        if self.temp_wort.is_some() {
-            self.wort_valid_time = Instant::now();
-        }
-
-        self.tick(ctx);
-    }
-}
-
-impl Receive<Params> for Fridge {
-    fn receive(&mut self,
-                ctx: &Context<Self::Msg>,
-                p: Params,
-                sender: Sender) {
-        self.params = p;
-        let pp = to_string_pretty(&self.params).expect("Failed serialising params");
-        info!("New params: {}", pp);
-
-        // quickly update the fridge for real world interactivity
-        self.tick(ctx);
-
-        let res = self.params.save(self.config);
-
-        if let Err(e) = &res {
-            // log it ...
-            error!("Failed saving params: {}", e);
-        }
-
-        // ... and return it
-        let res = res.map_err(|e| e.to_string());
-        if let Some(s) = sender {
-            s.try_tell(res, None).unwrap_or_else(|_| {
-                error!("This shouldn't happen, failed sending params");
-            })
-        }
-
-    }
-}
-
-impl Receive<Tick> for Fridge {
-    fn receive(&mut self,
-                ctx: &Context<Self::Msg>,
-                _tick: Tick,
-                _sender: Sender) {
-        self.have_wakeup = false;
-        self.tick(ctx);
-    }
-}
-
-impl Receive<GetStatus> for Fridge {
-    fn receive(&mut self,
-                _ctx: &Context<Self::Msg>,
-                _: GetStatus,
-                sender: Sender) {
-        if let Some(s) = sender {
-            let status = Status {
-                params: self.params.clone(),
-                on: self.on,
-                temp_wort: self.temp_wort,
-                temp_fridge: self.temp_fridge,
-                off_duration: Instant::now() - self.last_off_time,
-                fridge_delay: Duration::from_secs(self.config.fridge_delay),
-                overshoot_interval: self.config.overshoot_interval,
-                overshoot_factor: self.config.overshoot_factor,
-                sensor_interval: self.config.sensor_interval,
-                version: get_hg_version(),
-                uptime: Instant::now() - self.started,
-            };
-            s.try_tell(status, None).unwrap_or_else(|_| {
-                error!("This shouldn't happen, failed sending params");
-            })
-        }
-    }
-}
-
 
 enum FridgeOutput {
     Gpio(Pin),
@@ -182,12 +79,45 @@ impl Drop for Fridge {
     }
 }
 
-impl ActorFactoryArgs<&'static Config> for Fridge {
-    fn create_args(config: &'static Config) -> Self {
-        // XXX how can we handle failing actor creation better?
-        let output = Self::make_output(&config).unwrap();
+#[async_trait]
+impl Subscriber<Readings> for Fridge {
+    async fn notify(&mut self, r: Readings) {
+        self.add_readings(r).await;
+    }
+}
 
-        let mut f = Fridge { 
+#[async_trait]
+impl Actor for Fridge {
+    async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()> {
+
+        let pp = to_string_pretty(&self.params).expect("Failed serialising params");
+        info!("Starting with params: {}", pp);
+
+        if self.config.nowait {
+            self.last_off_time -= Duration::new(self.config.fridge_delay, 1);
+        }
+
+        if self.config.testmode {
+            let sens = sensor::TestSensor::new(self.config, upcast!(addr.downgrade()));
+            self.sensor = Some(upcast!(spawn_actor(sens)));
+        } else {
+            let sens = sensor::OneWireSensor::new(self.config, upcast!(addr.downgrade()));
+            self.sensor = Some(upcast!(spawn_actor(sens)));
+        };
+
+        // Start the timer going
+        self.tick();
+        Produces::ok(())
+    }
+
+
+}
+
+impl Fridge {
+    pub fn try_new(config: &'static Config) -> Result<Self> {
+        let output = Self::make_output(&config)?;
+
+        Ok(Fridge { 
             config,
             params: Params::load(&config),
             on: false,
@@ -200,20 +130,56 @@ impl ActorFactoryArgs<&'static Config> for Fridge {
             often_tooearly: NotTooOften::new(300),
             have_wakeup: false,
             started: Instant::now(),
-        };
+            sensor: None,
+        })
+    }
 
-        let pp = to_string_pretty(&f.params).expect("Failed serialising params");
-        info!("Starting with params: {}", pp);
+    pub async fn add_readings(&mut self, r: Readings) {
+        debug!("add_readings {:?}", r);
+        self.temp_wort = r.get_temp(&self.config.wort_name);
+        self.temp_fridge = r.get_temp(&self.config.fridge_name);
 
-        if config.nowait {
-            f.last_off_time -= Duration::new(config.fridge_delay, 1);
+        if self.temp_wort.is_some() {
+            self.wort_valid_time = Instant::now();
         }
 
-        f
+        self.tick();
     }
-}
 
-impl Fridge {
+    pub async fn set_params(&mut self, p: Params) -> ActorResult<Result<()>> {
+        self.params = p;
+        let pp = to_string_pretty(&self.params).expect("Failed serialising params");
+        info!("New params: {}", pp);
+
+        // quickly update the fridge for real world interactivity
+        self.tick();
+
+        let res = self.params.save(self.config);
+
+        if let Err(e) = &res {
+            // log it too
+            error!("Failed saving params: {}", e);
+        }
+        Produces::ok(res)
+    }
+
+    pub async fn get_status(&mut self) -> ActorResult<Status> {
+        let s = Status {
+            params: self.params.clone(),
+            on: self.on,
+            temp_wort: self.temp_wort,
+            temp_fridge: self.temp_fridge,
+            off_duration: Instant::now() - self.last_off_time,
+            fridge_delay: Duration::from_secs(self.config.fridge_delay),
+            overshoot_interval: self.config.overshoot_interval,
+            overshoot_factor: self.config.overshoot_factor,
+            sensor_interval: self.config.sensor_interval,
+            version: get_hg_version(),
+            uptime: Instant::now() - self.started,
+        };
+        Produces::ok(s)
+    }
+
     fn make_output(config: &Config) -> Result<FridgeOutput> {
         if config.testmode || config.dryrun {
             Ok(FridgeOutput::Fake)
@@ -344,17 +310,30 @@ impl Fridge {
         }
     }
 
+            // TODO actor
+    /*
+impl Receive<Tick> for Fridge {
+    fn receive(&mut self,
+                ctx: &Context<Self::Msg>,
+                _tick: Tick,
+                _sender: Sender) {
+        self.have_wakeup = false;
+        self.tick(ctx);
+    }
+}
+*/
+
     /// Must be called after every state change. 
     /// Turns the fridge on/off as required and schedules a 
     /// future wakeup.
-    fn tick(&mut self,
-        ctx: &Context<<Self as Actor>::Msg>) {
+    fn tick(&mut self) {
 
         self.compare_temperatures();
 
         if !self.have_wakeup {
             // Arbitrary 10 secs, enough to notice invalid wort or fridge delay
-            ctx.schedule_once(Duration::from_secs(10), ctx.myself(), None, Tick);
+            // TODO actor
+            //ctx.schedule_once(Duration::from_secs(10), ctx.myself(), None, Tick);
             self.have_wakeup = true;
         }
     }

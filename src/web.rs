@@ -1,13 +1,13 @@
-
 use std::time::Duration;
+
+#[allow(unused_imports)]
+use log::{debug, info, warn, error};
 
 use crate::Config;
 use tide::sessions::Session;
 use anyhow::{Result,anyhow,Context};
 
-use riker::actors::*;
-use riker_patterns::ask::ask;
-use futures::future::RemoteHandle;
+use act_zero::*;
 
 use serde::{Serialize,Deserialize};
 
@@ -20,15 +20,13 @@ use crate::types::DurationFormat;
 
 #[derive(Clone)]
 struct WebState {
-    sys: ActorSystem,
-    fridge: ActorRef<fridge::FridgeMsg>,
+    fridge: Addr<fridge::Fridge>,
     config: &'static Config,
 }
 
 impl WebState {
-    fn new(sys: &ActorSystem, fridge: ActorRef<fridge::FridgeMsg>, config: &'static Config) -> Self {
+    fn new(fridge: Addr<fridge::Fridge>, config: &'static Config) -> Self {
         WebState {
-            sys: sys.clone(),
             fridge,
             config,
         }
@@ -89,8 +87,7 @@ struct SetPage<'a> {
 
 async fn handle_set(req: Request<WebState>) -> tide::Result {
     let s = req.state();
-    let p: RemoteHandle<fridge::Status> = ask(&s.sys, &s.fridge, fridge::GetStatus);
-    let status = p.await;
+    let status = call!(s.fridge.get_status()).await?;
 
     let ses: &Session = req.ext().ok_or_else(|| anyhow!("Missing session"))?;
     let allowed = s.config.allowed_sessions.contains(ses.id());
@@ -184,18 +181,14 @@ async fn handle_update(mut req: Request<WebState>) -> tide::Result {
         })?;
 
     // send the params to the fridge
-    let p: RemoteHandle<Result<(),String>> = ask(&s.sys, &s.fridge, update.params);
-
-    // check it succeeded
-    p.await
+    call!(s.fridge.set_params(update.params)).await
     .map(|_| "Updated".into())
     .map_err(|e| tide::http::Error::from_str(StatusCode::InternalServerError, e))
 }
 
 async fn handle_status(req: Request<WebState>) -> tide::Result {
     let s = req.state();
-    let s: RemoteHandle<fridge::Status> = ask(&s.sys, &s.fridge, fridge::GetStatus);
-    let status = s.await;
+    let status = call!(s.fridge.get_status()).await?;
     let resp = Response::builder(200)
     .body(tide::Body::from_json(&status)?)
     .content_type(tide::http::mime::JSON)
@@ -212,8 +205,8 @@ fn until_2038() -> Result<Duration> {
     Ok(dur)
 }
 
-pub async fn listen_http(sys: &ActorSystem, fridge: ActorRef<fridge::FridgeMsg>, config: &'static Config) -> Result<()> {
-    let ws = WebState::new(sys, fridge, config);
+pub async fn listen_http(fridge: Addr<fridge::Fridge>, config: &'static Config) -> Result<()> {
+    let ws = WebState::new(fridge, config);
     let mut server = tide::with_state(ws);
 
     // Make it return a http error's string as the body.
