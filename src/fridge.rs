@@ -71,10 +71,12 @@ enum FridgeOutput {
 
 impl Drop for Fridge {
     fn drop(&mut self) {
+        debug!("Fridge drop");
         if self.on {
             info!("Fridge turns off at shutdown");
         }
         self.turn_off();
+        debug!("Fridge drop complete")
     }
 }
 
@@ -121,7 +123,7 @@ impl Actor for Fridge {
     }
 
     async fn error(&mut self, error: ActorError) -> bool {
-        debug!("Fridge actor returned error: {:?}", error);
+        warn!("Ignoring error from Fridge actor: {:?}", error);
         false
     }
 }
@@ -178,7 +180,8 @@ impl Fridge {
             // log it too
             error!("Failed saving params: {}", e);
         }
-        Produces::ok(res)
+        // Produces::ok(res)
+        Err(anyhow!("failedfake").into())
     }
 
     pub async fn get_status(&mut self) -> ActorResult<Status> {
@@ -212,6 +215,7 @@ impl Fridge {
 
     fn turn_off(&mut self) {
         info!("Turning fridge off");
+        println!("\nprint turn off\n");
         self.turn(false).unwrap_or_else(|e| error!("Turning off failed: {}", e));
         self.last_off_time = Instant::now();
     }

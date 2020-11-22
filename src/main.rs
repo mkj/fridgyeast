@@ -1,7 +1,7 @@
 #[allow(unused_imports)]
 use {
     log::{debug, error, info, warn},
-    anyhow::{Result,Context,bail},
+    anyhow::{Result,Context,bail,anyhow},
 };
 
 use simplelog::{CombinedLogger,LevelFilter,TermLogger,WriteLogger,TerminalMode};
@@ -58,20 +58,27 @@ fn run(args: &Args) -> Result<()> {
     // start actor system
     let spawner = act_zero::runtimes::async_std::Runtime;
     let fridge = Addr::new(&spawner, fridge::Fridge::try_new(&cf)?)?;
-    let webserver = web::listen_http(fridge, &cf);
+    let webserver = web::listen_http(fridge.downgrade(), &cf);
 
     let webserver = webserver.fuse();
     let exit = wait_exit().fuse();
+    let mut fridge_done = fridge.downgrade().termination().fuse();
     futures::pin_mut!(webserver, exit);
 
     let allwaiting = async {
-        select! {
-            w = webserver => w,
+        let s = select! {
+            res = webserver => res,
+            _ = fridge_done => Err(anyhow!("main controller problem")),
             _ = exit => Ok(()),
-        }
+        };
+        s
     };
-
-    async_std::task::block_on(allwaiting)
+    let res = async_std::task::block_on(allwaiting);
+    // make sure the fridge finishes regardless
+    let final_fridge_done = fridge.termination();
+    std::mem::drop(fridge);
+    async_std::task::block_on(final_fridge_done);
+    res
 }
 
 #[derive(argh::FromArgs)]
@@ -151,9 +158,8 @@ fn main() -> Result<()> {
     let args = handle_args()?;
     info!("fridgyeast hg version {}. pid {}", types::get_hg_version(), std::process::id());
 
-    match run(&args) {
-        Err(e) => error!("Failed running: {:?}", e),
-        Ok(_) => info!("Done."),
-    }
-    Ok(())
+    run(&args).map_err(|e| {
+        error!("Bad Exit: {:?}", e);
+        std::process::exit(1);
+    })
 }

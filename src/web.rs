@@ -20,12 +20,12 @@ use crate::types::DurationFormat;
 
 #[derive(Clone)]
 struct WebState {
-    fridge: Addr<fridge::Fridge>,
+    fridge: WeakAddr<fridge::Fridge>,
     config: &'static Config,
 }
 
 impl WebState {
-    fn new(fridge: Addr<fridge::Fridge>, config: &'static Config) -> Self {
+    fn new(fridge: WeakAddr<fridge::Fridge>, config: &'static Config) -> Self {
         WebState {
             fridge,
             config,
@@ -206,7 +206,7 @@ fn until_2038() -> Result<Duration> {
     Ok(dur)
 }
 
-pub async fn listen_http(fridge: Addr<fridge::Fridge>, config: &'static Config) -> Result<()> {
+pub async fn listen_http(fridge: WeakAddr<fridge::Fridge>, config: &'static Config) -> Result<()> {
     let ws = WebState::new(fridge, config);
     let mut server = tide::with_state(ws);
 

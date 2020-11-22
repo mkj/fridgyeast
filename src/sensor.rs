@@ -56,6 +56,10 @@ impl Actor for OneWireSensor {
         self.timer.set_interval_weak(addr.downgrade(), dur);
         Produces::ok(())
     }
+    async fn error(&mut self, error: ActorError) -> bool {
+        warn!("Ignoring error from OneWireSensor actor: {:?}", error);
+        false
+    }
 }
 
 impl OneWireSensor {
