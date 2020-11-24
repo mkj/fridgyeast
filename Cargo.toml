@@ -6,12 +6,10 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0"
-log-panics = { version = "2.0", features = ["with-backtrace"] }
 argh = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rand = "0.7"
-chrono = "0.4"
 regex = "1.3"
 atomicwrites = "0.2"
 
@@ -21,7 +19,9 @@ async-io = "1.1"
 async-std = { version = "1.6", features = ["attributes"] }
 async-trait = "0.1"
 
-act-zero = { version = "0.3", features = ["async-std"] }
+#act-zero = { version = "0.3", features = ["async-std"] }
+# wait for drop
+act-zero= { git = "https://github.com/Diggsey/act-zero", rev = "f2e4ac6f7e451e0c3bad039d601bef7be9de9aeb", features = ["async-std"] }
 
 config = { version = "0.10", features = ["toml"], default-features = false }
 
