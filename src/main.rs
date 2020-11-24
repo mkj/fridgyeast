@@ -158,8 +158,10 @@ fn main() -> Result<()> {
     let args = handle_args()?;
     info!("fridgyeast hg version {}. pid {}", types::get_hg_version(), std::process::id());
 
-    run(&args).map_err(|e| {
+    let e = run(&args).map_err(|e| {
         error!("Bad Exit: {:?}", e);
         std::process::exit(1);
-    })
+    });
+    info!("Done.");
+    e
 }

@@ -71,12 +71,10 @@ enum FridgeOutput {
 
 impl Drop for Fridge {
     fn drop(&mut self) {
-        debug!("Fridge drop");
         if self.on {
             info!("Fridge turns off at shutdown");
         }
         self.turn_off();
-        debug!("Fridge drop complete")
     }
 }
 
@@ -215,7 +213,6 @@ impl Fridge {
 
     fn turn_off(&mut self) {
         info!("Turning fridge off");
-        println!("\nprint turn off\n");
         self.turn(false).unwrap_or_else(|e| error!("Turning off failed: {}", e));
         self.last_off_time = Instant::now();
     }
