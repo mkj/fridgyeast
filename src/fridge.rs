@@ -178,8 +178,7 @@ impl Fridge {
             // log it too
             error!("Failed saving params: {}", e);
         }
-        // Produces::ok(res)
-        Err(anyhow!("failedfake").into())
+        Produces::ok(res)
     }
 
     pub async fn get_status(&mut self) -> ActorResult<Status> {
