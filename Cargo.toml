@@ -32,11 +32,12 @@ simplelog = "0.8"
 
 # tide must match version used in tide-rustls, so have strict versions here
 # don't want default logging feature
-tide = { version = "= 0.14.0", default-features = false, features = ["h1-server", "sessions"] }
-tide-rustls = "= 0.1.3"
+tide = { version = "= 0.15.0", default-features = false, features = ["h1-server", "sessions"] }
+tide-rustls = "= 0.1.4"
+tide-compress = "0.8.1"
 
 askama = { version = "0.10", features = ["serde-json", "with-tide"] }
-askama_tide = "= 0.11.2"
+askama_tide = "= 0.12.0"
 
 
 [profile.release]

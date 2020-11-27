@@ -234,6 +234,8 @@ pub async fn listen_http(fridge: WeakAddr<fridge::Fridge>, config: &'static Conf
         .without_save_unchanged()
     );
 
+    server.with(tide_compress::CompressMiddleware::new());
+
     // url handlers
     server.at("/").get(handle_set);
     server.at("/update").post(handle_update);
