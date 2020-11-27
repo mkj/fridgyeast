@@ -117,7 +117,7 @@ impl OneWireSensor {
         let mut path = PathBuf::from(&self.config.sensor_base_dir);
         path.push(n);
         path.push("w1_slave");
-        let s = read_to_string(path).await?;
+        let s = read_to_string(path).await.context("Error reading w1 sensor")?;
         let caps = self.therm_re.captures(&s).ok_or_else(|| {
                 anyhow!("Bad sensor contents match {}", &s)
             })?;

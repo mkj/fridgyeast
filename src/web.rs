@@ -3,6 +3,9 @@ use std::time::Duration;
 #[allow(unused_imports)]
 use log::{debug, info, warn, error};
 
+use std::net::ToSocketAddrs;
+use async_std::fs::File;
+
 use crate::Config;
 use tide::sessions::Session;
 use anyhow::{Result,anyhow,Context};
@@ -197,13 +200,13 @@ async fn handle_status(req: Request<WebState>) -> tide::Result {
     Ok(resp)
 }
 
-fn until_2038() -> Result<Duration> {
+fn until_2038() -> Duration {
     let time_2038 = std::time::UNIX_EPOCH.checked_add(Duration::from_secs(i32::MAX as u64))
-    .ok_or(anyhow!("failed making year 2038"))?;
-    let dur = time_2038.duration_since(std::time::SystemTime::now()).context("unix epoch duration")?;
+        .expect("failed making year 2038");
+    let dur = time_2038.duration_since(std::time::SystemTime::now()).expect("Failed unix epoch duration");
     // 100 day leeway for bad clocks
     let dur = dur - Duration::from_secs(3600*24*100);
-    Ok(dur)
+    dur
 }
 
 pub async fn listen_http(fridge: WeakAddr<fridge::Fridge>, config: &'static Config) -> Result<()> {
@@ -225,7 +228,7 @@ pub async fn listen_http(fridge: WeakAddr<fridge::Fridge>, config: &'static Conf
             tide::sessions::CookieStore::new(),
             config.session_secret.as_bytes(),
         )
-        .with_session_ttl(Some(until_2038()?))
+        .with_session_ttl(Some(until_2038()))
         .with_same_site_policy(tide::http::cookies::SameSite::Strict)
         .with_cookie_name(&config.auth_cookie)
         .without_save_unchanged()
@@ -238,11 +241,18 @@ pub async fn listen_http(fridge: WeakAddr<fridge::Fridge>, config: &'static Conf
     server.at("/logout").get(handle_logout);
     server.at("/status").get(handle_status);
 
+    let mut addrs = vec![];
+    for l in &config.listen {
+        addrs.extend(l.to_socket_addrs().with_context(|| format!("Can't listen on '{}'", l))?);
+    };
+    // workaround contextless error messages by checking files exist first
+    File::open(&config.cert_file).await.context("Problem with cert_file")?;
+    File::open(&config.key_file).await.context("Problem with key_file")?;
     let conf = tide_rustls::TlsListener::build()
-            .addrs(":::4433")
+            .addrs(&*addrs)
             .cert(&config.cert_file)
             .key(&config.key_file);
 
-    server.listen(conf).await?;
+    server.listen(conf).await.context("web listener failed")?;
     Ok(())
 }

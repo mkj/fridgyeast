@@ -3,7 +3,7 @@
 
 fridge_delay = 600 # 10 mins to avoid fridge damage from frequent cycling off/on
 fridge_wort_invalid_time = 300 # 5 mins
-overshoot_delay = 3600 # 1 hour
+overshoot_interval = 3600 # 1 hour
 overshoot_factor = 1.0 # degrees per overshoot_delay
 
 sensor_base_dir = "/sys/devices/w1_bus_master1"
@@ -11,12 +11,13 @@ fridge_gpio_pin = 17
 fridge_name = "28-0000042c6dbb"
 wort_name = "28-0000042cccc4"
 
+listen = [ ":::4411", ":::4433" ]
 # mailto: link for adding session ids uses this address
 auth_email = "you@example.com"
 cert_file = "fridgyeast-fullchain.pem"
 key_file = "fridgyeast-privkey.pem"
 
-session_secret = "Put a real secret here"
+session_secret = "Put a real secret here, at least 32 characters"
 
 # a list of strings sessionids
 allowed_sessions = []

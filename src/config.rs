@@ -16,6 +16,7 @@ pub struct Config {
     pub fridge_name: String,
     pub wort_name: String,
 
+    pub listen: Vec<String>,
     pub auth_email: String,
     pub cert_file: String,
     pub key_file: String,
