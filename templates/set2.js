@@ -131,9 +131,9 @@ function setup_numinput(input) {
         this.blur()
     }
     el.querySelector(".button_up").addEventListener("mousedown", uppress)
-    el.querySelector(".button_up").addEventListener("touchstart", uppress, {passive: true})
+    el.querySelector(".button_up").addEventListener("touchstart", uppress)
     el.querySelector(".button_down").addEventListener("mousedown", downpress)
-    el.querySelector(".button_down").addEventListener("touchstart", downpress, {passive: true})
+    el.querySelector(".button_down").addEventListener("touchstart", downpress)
 
     el.querySelector(".oldvalue").textContent = fixed_value(name, model.params[name]) + input.unit
     set_numinput_value(el, name, model.params[name])
@@ -151,9 +151,9 @@ function setup_yesnoinput(input) {
         this.blur()
     }
     el.querySelector(".button_yes").addEventListener("mousedown", yespress)
-    el.querySelector(".button_yes").addEventListener("touchstart", yespress, {passive: true})
+    el.querySelector(".button_yes").addEventListener("touchstart", yespress)
     el.querySelector(".button_no").addEventListener("mousedown", nopress)
-    el.querySelector(".button_no").addEventListener("touchstart", nopress, {passive: true})
+    el.querySelector(".button_no").addEventListener("touchstart", nopress)
 
     el.querySelector(".oldvalue").textContent = model.params[name] ? 'Yes' : 'No'
     set_yesnoinput_value(el, model.params[name]);
