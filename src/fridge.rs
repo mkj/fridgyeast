@@ -37,7 +37,6 @@ pub struct Status {
 
     // from config
     pub overshoot_interval: u64,
-    pub overshoot_factor: f32,
     pub sensor_interval: u64,
 
     pub version: &'static str,
@@ -190,7 +189,6 @@ impl Fridge {
             off_duration: Instant::now() - self.last_off_time,
             fridge_delay: Duration::from_secs(self.config.fridge_delay),
             overshoot_interval: self.config.overshoot_interval,
-            overshoot_factor: self.config.overshoot_factor,
             sensor_interval: self.config.sensor_interval,
             version: get_hg_version(),
             uptime: Instant::now() - self.started,
@@ -272,11 +270,12 @@ impl Fridge {
             warn!("Invalid fridge sensor");
         }
 
+        // The main decision
         if self.on {
             let on_time = self.integrator.integrate().as_secs() as f32;
             let on_ratio = on_time / self.config.overshoot_interval as f32;
 
-            let overshoot = self.config.overshoot_factor as f32 * on_ratio;
+            let overshoot = self.params.overshoot_factor as f32 * on_ratio;
             debug!("on_percent {}, overshoot {}", on_ratio * 100.0, overshoot);
 
             let mut turn_off = false;
@@ -286,7 +285,7 @@ impl Fridge {
                 if t - overshoot < self.params.fridge_setpoint {
                     info!("Wort has cooled enough, {temp}º (overshoot {overshoot}º = {factor} × {percent}%)",
                          temp = t, overshoot = overshoot,
-                         factor = self.config.overshoot_factor,
+                         factor = self.params.overshoot_factor,
                          percent = on_ratio*100.0);
                     turn_off = true;
                 }

@@ -4,7 +4,6 @@
 fridge_delay = 600 # 10 mins to avoid fridge damage from frequent cycling off/on
 fridge_wort_invalid_time = 300 # 5 mins
 overshoot_interval = 3600 # 1 hour
-overshoot_factor = 1.0 # degrees per overshoot_delay
 
 sensor_base_dir = "/sys/devices/w1_bus_master1"
 fridge_gpio_pin = 17

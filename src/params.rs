@@ -22,6 +22,7 @@ pub struct Params {
     pub nowort: bool,
     pub fridge_range_lower: f32,
     pub fridge_range_upper: f32,
+    pub overshoot_factor: f32,
 }
 
 impl Params {
@@ -33,6 +34,7 @@ impl Params {
             nowort: false,
             fridge_range_lower: 3.0,
             fridge_range_upper: 3.0,
+            overshoot_factor: 0.1,
             }
     }
 
