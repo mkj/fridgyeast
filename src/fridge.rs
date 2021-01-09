@@ -236,7 +236,7 @@ impl Fridge {
     /// Turns the fridge off and on
     fn update(&mut self) {
         let fridge_min = self.params.fridge_setpoint - self.params.fridge_range_lower;
-        let fridge_max = self.params.fridge_setpoint - self.params.fridge_range_upper;
+        let fridge_max = self.params.fridge_setpoint + self.params.fridge_range_upper;
         let wort_max = self.params.fridge_setpoint + self.params.fridge_difference;
         let off_duration = Instant::now() - self.last_off_time;
 
