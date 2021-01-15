@@ -1,0 +1,21 @@
+# Put this in /etc/systemd/system/fridgyeast.service and
+# systemctl daemon-reload
+# systemctl enable fridgyeast.service
+#
+# Also needs
+# adduser matt gpio
+
+[Unit]
+Description=Fridgyeast
+
+[Service]
+User=matt
+ExecStart=/home/matt/fridgyeast
+WorkingDirectory=/home/matt
+Type=simple
+StandardOutput=null
+StandardError=null
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
