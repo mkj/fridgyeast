@@ -46,6 +46,9 @@ struct NumInput {
     digits: usize,
 }
 
+const COOKIE_NAME: &str = "fridgyeast-moreauth";
+const CSRF_NAME: &str = "real-fridgyeast";
+
 impl NumInput {
     fn new(name: &str, title: & str, unit: & str, step: f32, digits: usize, ) -> Self {
         NumInput {
@@ -82,6 +85,7 @@ struct SetPage<'a> {
     allowed: bool,
     cookie_hash: &'a str,
     debug: bool,
+    testmode: bool,
     recent_off_time: Option<String>,
 
     numinputs: Vec<NumInput>,
@@ -103,6 +107,7 @@ async fn handle_set(req: Request<WebState>) -> tide::Result {
         Some(status.off_duration.as_short_str())
     };
 
+    debug!("cookies are {:?}", req.cookie("fridgyeast-moreauth"));
 
     let mut s = SetPage {
         status,
@@ -110,6 +115,7 @@ async fn handle_set(req: Request<WebState>) -> tide::Result {
         allowed,
         cookie_hash: ses.id(),
         debug: s.config.debug,
+        testmode: s.config.testmode,
         recent_off_time,
 
         numinputs: vec![],
@@ -124,7 +130,14 @@ async fn handle_set(req: Request<WebState>) -> tide::Result {
     s.numinputs.push(NumInput::new("fridge_range_lower", "Lower range", "°", 1.0, 0));
     s.numinputs.push(NumInput::new("fridge_range_upper", "Upper range", "°", 1.0, 0));
 
-    let r = askama_tide::into_response(&s, "html");
+    let mut r = askama_tide::into_response(&s, "html");
+
+    // set a different samesite cookie for CSRF protection
+    r.insert_cookie(tide::http::cookies::Cookie::build(CSRF_NAME, "yeah")
+        .secure(true)
+        .http_only(true)
+        .same_site(tide::http::cookies::SameSite::Strict)
+        .finish());
 
     Ok(r)
 }
@@ -172,6 +185,10 @@ async fn handle_update(mut req: Request<WebState>) -> tide::Result {
 
     if !allowed {
         return Err(tide::http::Error::from_str(403, "Not registered"))
+    }
+
+    if req.cookie(CSRF_NAME).is_none() {
+        return Err(tide::http::Error::from_str(403, "Bad CSRF"))
     }
 
     #[derive(Deserialize)]
@@ -230,8 +247,8 @@ pub async fn listen_http(fridge: WeakAddr<fridge::Fridge>, config: &'static Conf
             config.session_secret.as_bytes(),
         )
         .with_session_ttl(Some(until_2038()))
-        .with_same_site_policy(tide::http::cookies::SameSite::Strict)
-        .with_cookie_name(&config.auth_cookie)
+        .with_same_site_policy(tide::http::cookies::SameSite::Lax)
+        .with_cookie_name(COOKIE_NAME)
         .without_save_unchanged()
     );
 

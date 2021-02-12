@@ -22,6 +22,9 @@
 
 <body>
 
+{% if testmode %}
+<i>Test Mode</i><br/>
+{% endif %}
 <div id="current_fridge">
 Wort 
 {% match status.temp_wort %}

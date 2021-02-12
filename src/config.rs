@@ -28,7 +28,6 @@ pub struct Config {
     // hardcoded params, set in Config::default()
     pub params_file: String,
     pub sensor_interval: u64,
-    pub auth_cookie: String,
 
 
     // runtime parameters usually from the command line
@@ -55,7 +54,6 @@ impl Config {
         // hidden config, not in defconfig.toml
         c.set_default("sensor_interval", 10)?; // 10 seconds
         c.set_default("params_file", "fridgyeast.conf".to_string())?;
-        c.set_default("auth_cookie", "fridgyeast-auth".to_string())?;
         Ok(c)
     }
 
