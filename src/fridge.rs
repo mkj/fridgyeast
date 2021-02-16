@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
 use {
-    log::{debug, error, info, warn},
+    log::{debug, error, info, warn,log},
     anyhow::{Result,Context,bail,anyhow},
 };
 
@@ -58,7 +58,10 @@ pub struct Fridge {
 
     timer: Timer,
 
+    // avoid printing logs too often
     often_tooearly: NotTooOften,
+    often_badfridge: NotTooOften,
+    often_badwort: NotTooOften,
 
     sensor: Option<Addr<dyn Actor>>,
 }
@@ -140,6 +143,8 @@ impl Fridge {
             integrator: StepIntegrator::new(Duration::from_secs(config.overshoot_interval)),
             output,
             often_tooearly: NotTooOften::new(300),
+            often_badwort: NotTooOften::new(100),
+            often_badfridge: NotTooOften::new(300),
             timer: Timer::default(),
             started: Instant::now(),
             sensor: None,
@@ -240,14 +245,6 @@ impl Fridge {
 
         debug!("off_duration {:?}", off_duration);
 
-        // Safety to avoid bad things happening to the fridge motor (?)
-        // When it turns off don't start up again for at least FRIDGE_DELAY
-        if !self.on && off_duration < Duration::from_secs(self.config.fridge_delay) {
-            self.often_tooearly.and_then(|| info!("Fridge skipping, too early ({} seconds left)",
-                self.config.fridge_delay - off_duration.as_secs()));
-            return;
-        }
-
         if !self.params.running {
             if self.on {
                 info!("Disabled, turning fridge off");
@@ -259,15 +256,21 @@ impl Fridge {
         // handle broken wort sensor
         if self.temp_wort.is_none() {
             let invalid_time = Instant::now() - self.wort_valid_time;
-            warn!("Invalid wort sensor for {:?} secs", invalid_time);
-            if invalid_time < Duration::new(self.config.fridge_wort_invalid_time, 0) {
-                warn!("Has only been invalid for {:?}, waiting", invalid_time);
+            let skip = invalid_time < Duration::new(self.config.fridge_wort_invalid_time, 0);
+            self.often_badwort.and_then(|| {
+                if skip {
+                    warn!("Has only been invalid for {:?}, waiting", invalid_time);
+                } else {
+                    warn!("Invalid wort sensor for {:?} secs", invalid_time);
+                }
+            });
+            if skip {
                 return;
             }
         }
 
         if self.temp_fridge.is_none() {
-            warn!("Invalid fridge sensor");
+            self.often_badfridge.and_then(|| warn!("Invalid fridge sensor"));
         }
 
         // The main decision
@@ -283,16 +286,14 @@ impl Fridge {
                 let t = self.temp_wort.unwrap();
                 // use the wort temperature
                 if t - overshoot < self.params.fridge_setpoint {
-                    info!("Wort has cooled enough, {temp}º (overshoot {overshoot}º = {factor} × {percent}%)",
-                         temp = t, overshoot = overshoot,
-                         factor = self.params.overshoot_factor,
-                         percent = on_ratio*100.0);
+                    info!("Wort has cooled enough, {temp}° (overshoot {overshoot}°)",
+                         temp = t, overshoot = overshoot);
                     turn_off = true;
                 }
             } else if let Some(t) = self.temp_fridge {
                 // use the fridge temperature
                 if t < fridge_min {
-                    warn!("Fridge off fallback, fridge {}, min {}", t, fridge_min);
+                    warn!("Fridge off fallback, fridge {}°, min {}°", t, fridge_min);
                     if self.temp_wort.is_none() {
                         warn!("Wort has been invalid for {:?}", Instant::now() - self.wort_valid_time);
                     }
@@ -303,25 +304,40 @@ impl Fridge {
                 self.turn_off();
             }
         } else {
-            let mut turn_on = false;
+            // Also is the flag to turn it on.
+            let mut turn_on_reason = None;
+
             // TODO can use if let Some(t) = ... && ...
             // once https://github.com/rust-lang/rust/issues/53667 is done
             if self.temp_wort.is_some() && !self.params.nowort {
                 // use the wort temperature
                 let t = self.temp_wort.unwrap();
                 if t >= wort_max {
-                    info!("Wort is too hot {}°, max {}°", t, wort_max);
-                    turn_on = true;
+                    turn_on_reason = Some((
+                        format!("Wort is too hot {}°, max {}°", t, wort_max),
+                        log::Level::Info));
                 }
             } else if let Some(t) = self.temp_fridge {
                 if t >= fridge_max {
-                    warn!("Fridge too hot fallback, fridge {}°, max {}°", t, fridge_max);
-                    turn_on = true;
+                    turn_on_reason = Some((
+                        format!("Fridge too hot fallback, fridge {}°, max {}°", t, fridge_max),
+                        log::Level::Warn));
                 }
             }
 
-            if turn_on {
-                self.turn_on()
+            if let Some((reason, loglevel)) = turn_on_reason {
+                // The fridge should turn on
+
+                if off_duration < Duration::from_secs(self.config.fridge_delay) {
+                    // Safety to avoid bad things happening to the fridge motor (?)
+                    // When it turns off don't start up again for at least FRIDGE_DELAY
+                    self.often_tooearly.and_then(|| log!(loglevel, "{}, but fridge skipping, too early ({} seconds left)",
+                        reason, self.config.fridge_delay - off_duration.as_secs()));
+                } else {
+                    // Really turn on.
+                    log!(loglevel, "{}", &reason);
+                    self.turn_on();
+                }
             }
         }
     }
