@@ -19,9 +19,7 @@ async-io = "1.1"
 async-std = { version = "1.6", features = ["attributes"] }
 async-trait = "0.1"
 
-#act-zero = { version = "0.3", features = ["async-std"] }
-# wait for drop
-act-zero= { git = "https://github.com/Diggsey/act-zero", rev = "f2e4ac6f7e451e0c3bad039d601bef7be9de9aeb", features = ["async-std"] }
+act-zero = { version = "0.4", features = ["async-std"] }
 
 config = { version = "0.10", features = ["toml"], default-features = false }
 
