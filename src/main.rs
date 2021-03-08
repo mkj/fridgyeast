@@ -123,7 +123,6 @@ fn setup_log(debug: bool) -> Result<()> {
         true => LevelFilter::Debug,
         false => LevelFilter::Info,
     };
-    println!("log level {:?}", level);
     let logconf = simplelog::ConfigBuilder::new()
     .set_time_format_str("%Y-%m-%d %H:%M:%S%.3f")
     .set_time_to_local(true)
