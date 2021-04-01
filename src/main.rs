@@ -4,7 +4,7 @@ use {
     anyhow::{Result,Context,bail,anyhow},
 };
 
-use simplelog::{CombinedLogger,LevelFilter,TermLogger,WriteLogger,TerminalMode};
+use simplelog::{CombinedLogger,LevelFilter,TermLogger,WriteLogger,TerminalMode,ColorChoice};
 
 use act_zero::*;
 use async_std::io::ReadExt;
@@ -28,8 +28,8 @@ async fn wait_exit() -> Result<()> {
     use std::os::unix::net::UnixStream;
 
     let (w, mut r) = Async::<UnixStream>::pair()?;
-    signal_hook::pipe::register(signal_hook::SIGINT, w.get_ref().try_clone()?)?;
-    signal_hook::pipe::register(signal_hook::SIGTERM, w.get_ref().try_clone()?)?;
+    signal_hook::low_level::pipe::register(signal_hook::consts::signal::SIGINT, w.get_ref().try_clone()?)?;
+    signal_hook::low_level::pipe::register(signal_hook::consts::signal::SIGTERM, w.get_ref().try_clone()?)?;
     debug!("Waiting for exit signal");
 
     // Receive a byte that indicates the Ctrl-C signal occurred.
@@ -129,7 +129,7 @@ fn setup_log(debug: bool) -> Result<()> {
     .build();
     CombinedLogger::init(
         vec![
-            TermLogger::new(level, logconf.clone(), TerminalMode::Mixed),
+            TermLogger::new(level, logconf.clone(), TerminalMode::Mixed, ColorChoice::Auto),
             WriteLogger::new(level, logconf, open_logfile()?),
         ]
     ).context("logging setup failed")
