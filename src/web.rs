@@ -17,6 +17,9 @@ use serde::{Serialize,Deserialize};
 use tide::utils::After;
 use tide::{Request,Response,StatusCode};
 
+use tide_acme::{AcmeConfig, TideRustlsExt};
+use tide::listener::Listener;
+
 use crate::fridge;
 use crate::params::Params;
 use crate::types::DurationFormat;
@@ -227,6 +230,31 @@ fn until_2038() -> Duration {
     dur
 }
 
+async fn listen_test(server: tide::Server<WebState>, 
+    _config: &'static Config, 
+    addrs: Vec<std::net::SocketAddr>) -> Result<()> {
+    let mut listener = server.bind(addrs).await.context("binding web server failed")?;
+    listener.accept().await.context("web server failed")?;
+    Ok(())
+}
+
+async fn listen_ssl(server: tide::Server<WebState>, 
+    config: &'static Config, 
+    addrs: Vec<std::net::SocketAddr>) -> Result<()> {
+    let conf = tide_rustls::TlsListener::build()
+            .addrs(&*addrs)
+            .acme(
+                AcmeConfig::new()
+                .domains(config.ssl_domain.clone())
+                .cache_dir(&config.params_dir)
+                .production()
+                );
+
+    let mut listener = server.bind(conf).await.context("binding web server failed")?;
+    listener.accept().await.context("web server failed")?;
+    Ok(())
+}
+
 pub async fn listen_http(fridge: WeakAddr<fridge::Fridge>, config: &'static Config) -> Result<()> {
     let ws = WebState::new(fridge, config);
     let mut server = tide::with_state(ws);
@@ -265,14 +293,12 @@ pub async fn listen_http(fridge: WeakAddr<fridge::Fridge>, config: &'static Conf
     for l in &config.listen {
         addrs.extend(l.to_socket_addrs().with_context(|| format!("Can't listen on '{}'", l))?);
     };
-    // workaround contextless error messages by checking files exist first
-    File::open(&config.cert_file).await.context("Problem with cert_file")?;
-    File::open(&config.key_file).await.context("Problem with key_file")?;
-    let conf = tide_rustls::TlsListener::build()
-            .addrs(&*addrs)
-            .cert(&config.cert_file)
-            .key(&config.key_file);
 
-    server.listen(conf).await.context("web listener failed")?;
+    if config.testmode && !config.testssl{
+        listen_test(server, config, addrs).await?;
+    } else {
+        listen_ssl(server, config, addrs).await?;
+    }
+
     Ok(())
 }

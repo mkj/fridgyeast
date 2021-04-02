@@ -134,7 +134,7 @@ impl Fridge {
 
         let mut f = Fridge { 
             config,
-            params: Params::load(&config),
+            params: Params::load(&config)?,
             on: false,
             temp_wort: None,
             temp_fridge: None,

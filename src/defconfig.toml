@@ -11,10 +11,10 @@ fridge_name = "28-0000042c6dbb"
 wort_name = "28-0000042cccc4"
 
 listen = [ ":::4411", ":::4433" ]
+ssl_domain = [ "fridge.example.com" ]
+
 # mailto: link for adding session ids uses this address
 auth_email = "you@example.com"
-cert_file = "fridgyeast-fullchain.pem"
-key_file = "fridgyeast-privkey.pem"
 
 session_secret = "Put a real secret here, at least 32 characters"
 

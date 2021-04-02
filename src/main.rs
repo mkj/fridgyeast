@@ -45,14 +45,18 @@ fn run(args: &Args) -> Result<()> {
     cf.testmode = args.test;
     cf.nowait = args.nowait;
     cf.dryrun = args.dryrun;
+    cf.testssl = args.testssl;
     let cf : &'static Config = Box::leak(Box::new(cf));
 
     debug!("Running in debug mode");
     if cf.testmode {
-        info!("Running in test mode")
+        info!("Running in test mode");
+        if cf.testssl {
+            info!("Using real ssl though");
+        }
     }
     if cf.dryrun {
-        info!("Running in dry run mode")
+        info!("Running in dry run mode");
     }
 
     // start actor system
@@ -104,6 +108,10 @@ struct Args {
     /// print default config (customise in local.toml)
     #[argh(switch, short='e')]
     exampleconfig: bool,
+
+    /// request ACME certificate even in test mode
+    #[argh(switch)]
+    testssl: bool,
 
     /// config file
     #[argh(option, short = 'c', default = "\"local.toml\".to_string()")]

@@ -33,7 +33,7 @@ simplelog = "0.10"
 tide = { version = "= 0.16.0", default-features = false, features = ["h1-server", "sessions"] }
 tide-rustls = "= 0.3.0"
 tide-compress = "= 0.9.0"
-#tide-acme = "= 0.1.0"
+tide-acme = "= 0.1.0"
 askama_tide = "= 0.13.0"
 
 askama = { version = "0.10", features = ["serde-json", "with-tide"] }

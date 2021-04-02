@@ -1,6 +1,7 @@
-use std::collections::HashSet;
+use anyhow::{anyhow, Context, Error, Result};
 use serde::Deserialize;
-use anyhow::{Context, anyhow, Result, Error};
+use std::collections::HashSet;
+use std::path::PathBuf;
 
 #[derive(Deserialize)]
 pub struct Config {
@@ -16,19 +17,19 @@ pub struct Config {
     pub wort_name: String,
 
     pub listen: Vec<String>,
+    pub ssl_domain: Vec<String>,
     pub auth_email: String,
-    pub cert_file: String,
-    pub key_file: String,
 
     // TODO move this outside
     #[serde(skip_serializing)]
     pub session_secret: String,
     pub allowed_sessions: HashSet<String>,
 
-    // hardcoded params, set in Config::default()
-    pub params_file: String,
-    pub sensor_interval: u64,
+    // defaulted to "."
+    pub params_dir: PathBuf,
 
+    // hardcoded params, set in Config::default()
+    pub sensor_interval: u64,
 
     // runtime parameters usually from the command line
     // need to be set in Config::default()
@@ -36,6 +37,7 @@ pub struct Config {
     pub testmode: bool,
     pub dryrun: bool,
     pub nowait: bool,
+    pub testssl: bool,
 }
 
 impl Config {
@@ -50,23 +52,27 @@ impl Config {
         c.set_default("testmode", false)?;
         c.set_default("nowait", false)?;
         c.set_default("dryrun", false)?;
+        c.set_default("testssl", false)?;
 
         // hidden config, not in defconfig.toml
         c.set_default("sensor_interval", 10)?; // 10 seconds
-        c.set_default("params_file", "fridgyeast.conf".to_string())?;
+        c.set_default("params_dir", ".")?;
         Ok(c)
     }
 
     pub fn load(conf_file: &str) -> Result<Self> {
         let mut c = Self::default()?;
-        c.merge(config::File::with_name(conf_file)).map_err(|e| {
-            match e {
+        c.merge(config::File::with_name(conf_file))
+            .map_err(|e| match e {
                 config::ConfigError::NotFound(_) => anyhow!("Missing config {}", conf_file),
                 _ => Error::new(e).context(format!("Problem parsing {}", conf_file)),
-            }
-        })?;
+            })?;
         c.merge(config::Environment::with_prefix("TEMPLOG"))
             .context("Failed loading from TEMPLOG_ environment variables")?;
-        Ok(c.try_into().with_context(|| format!("Problem loading config {}", conf_file))?)
+
+        let conf: Self = c
+            .try_into()
+            .with_context(|| format!("Problem loading config {}", conf_file))?;
+        Ok(conf)
     }
 }
