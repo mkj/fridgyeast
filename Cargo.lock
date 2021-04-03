@@ -1688,9 +1688,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-acme"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa2fc1ea3fc15c70f7cb9b72d21b6a6057ebff6a251a86aa678c1a6ee8ef0c85"
+checksum = "6a1a94edf7334989d29752a3a0d9fdeb4e819f890e466a0505380d406dfc81c1"
 dependencies = [
  "async-h1",
  "async-rustls",
@@ -2364,9 +2364,9 @@ dependencies = [
 
 [[package]]
 name = "webpki-roots"
-version = "0.21.0"
+version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82015b7e0b8bad8185994674a13a93306bea76cf5a16c5a181382fd3a5ec2376"
+checksum = "aabe153544e473b775453675851ecc86863d2a81d786d741f6b76778f2a48940"
 dependencies = [
  "webpki",
 ]
