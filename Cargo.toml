@@ -32,7 +32,7 @@ simplelog = "0.10"
 # don't want default logging feature
 tide = { version = "= 0.16.0", default-features = false, features = ["h1-server", "sessions"] }
 tide-rustls = "= 0.3.0"
-tide-compress = "= 0.9.0"
+tide-compress = { version = "= 0.9.0", default-features = false, features = ["deflate"] }
 tide-acme = "= 0.1.1"
 askama_tide = "= 0.13.0"
 
