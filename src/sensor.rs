@@ -1,5 +1,8 @@
 #[allow(unused_imports)]
-use log::{debug, error, info, warn};
+use {
+    log::{debug, error, info, warn},
+    anyhow::{anyhow,Result,Context},
+};
 
 use async_trait::async_trait;
 use act_zero::*;
@@ -18,7 +21,6 @@ use async_std::fs::read_to_string;
 use std::str::FromStr;
 
 
-use anyhow::{anyhow,Result,Context};
 
 use super::types::*;
 use super::config::Config;
@@ -27,7 +29,6 @@ use crate::actzero_pubsub::Subscriber;
 pub struct OneWireSensor {
     config: &'static Config,
     target: WeakAddr<dyn Subscriber<Readings>>,
-    therm_re: regex::Regex,
     timer: Timer,
 }
 
@@ -68,7 +69,6 @@ impl OneWireSensor {
         OneWireSensor {
             config,
             target,
-            therm_re: regex::Regex::new("(?m).* YES\n.*t=(.*)\n").unwrap(),
             timer: Timer::default(),
         }
     }
@@ -88,39 +88,12 @@ impl OneWireSensor {
         Ok(r)
     }
 
-    // TODO actor
-    /*
-    fn recv(&mut self,
-            _ctx: &Context<Self::Msg>,
-            _msg: Self::Msg,
-            _sender: Sender) {
-        let r = self.get_readings();
-        match r {
-            Ok(r) => {
-                self.notify.tell(Publish{msg: r, topic: "readings".into()}, None);
-            },
-            Err(e) => {
-                warn!("Failed reading sensor: {}", e);
-            }
-        }
-    }
-    */
-
-
-
     async fn read_sensor(&self, n: &str) -> Result<f32> {
         let mut path = PathBuf::from(&self.config.sensor_base_dir);
         path.push(n);
-        path.push("w1_slave");
+        path.push("temperature");
         let s = read_to_string(path).await.context("Error reading w1 sensor")?;
-        let caps = self.therm_re.captures(&s).ok_or_else(|| {
-                anyhow!("Bad sensor contents match {}", &s)
-            })?;
-        let v = caps.get(1).ok_or_else(|| {
-                anyhow!("Bad sensor contents match {}", &s)
-            })?;
-
-        Ok(f32::from_str(v.into()).context("Sensor reading isn't a number")? / 1000.)
+        Ok(f32::from_str(str::trim(&s)).context("Sensor reading isn't a number")? / 1000.)
     }
 
     async fn sensor_names(&self) -> Result<Vec<String>> {
