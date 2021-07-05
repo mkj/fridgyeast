@@ -105,7 +105,7 @@ struct Args {
     #[argh(switch, short='n')]
     dryrun: bool,
 
-    /// print default config (customise in local.toml)
+    /// print default config (customise in fridgyeast.toml)
     #[argh(switch, short='e')]
     exampleconfig: bool,
 
@@ -114,7 +114,7 @@ struct Args {
     testssl: bool,
 
     /// config file
-    #[argh(option, short = 'c', default = "\"local.toml\".to_string()")]
+    #[argh(option, short = 'c', default = "\"fridgyeast.toml\".to_string()")]
     config: String,
 }
 

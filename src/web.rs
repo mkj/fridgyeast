@@ -171,7 +171,7 @@ async fn handle_register(mut req: Request<WebState>) -> tide::Result {
     let allowed = s.config.allowed_sessions.contains(ses.id());
 
     let r = Register {
-        email: &s.config.auth_email,
+        email: &s.config.owner_email,
         cookie_hash: ses.id(),
         known: known.is_some(),
         debug: s.config.debug,
@@ -247,6 +247,7 @@ async fn listen_ssl(server: tide::Server<WebState>,
                 AcmeConfig::new()
                 .domains(config.ssl_domain.clone())
                 .cache_dir(&config.params_dir)
+                .contact_email(&config.owner_email)
                 .production()
                 );
 

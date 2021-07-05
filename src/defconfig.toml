@@ -1,4 +1,4 @@
-# An example configuration. This should be saved as local.toml
+# An example configuration. This should be saved as fridgyeast.toml
 # All options are required.
 
 fridge_delay = 600 # 10 mins to avoid fridge damage from frequent cycling off/on
@@ -13,8 +13,9 @@ wort_name = "28-0000042cccc4"
 listen = [ ":::4411", ":::4433" ]
 ssl_domain = [ "fridge.example.com" ]
 
-# mailto: link for adding session ids uses this address
-auth_email = "you@example.com"
+# mailto: link for adding session ids uses this address.
+# Also used for letsencrypt.
+owner_email = "you@example.com"
 
 session_secret = "Put a real secret here, at least 32 characters"
 

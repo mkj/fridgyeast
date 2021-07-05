@@ -18,7 +18,7 @@ pub struct Config {
 
     pub listen: Vec<String>,
     pub ssl_domain: Vec<String>,
-    pub auth_email: String,
+    pub owner_email: String,
 
     // TODO move this outside
     #[serde(skip_serializing)]
