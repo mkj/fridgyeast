@@ -4,7 +4,6 @@ use std::time::Duration;
 use log::{debug, info, warn, error};
 
 use std::net::ToSocketAddrs;
-use async_std::fs::File;
 
 use crate::Config;
 use tide::sessions::Session;
@@ -199,9 +198,9 @@ async fn handle_update(mut req: Request<WebState>) -> tide::Result {
         params: Params,
     }
 
-    let update: Update = req.body_json().await.or_else(|e| {
+    let update: Update = req.body_json().await.map_err(|e| {
         debug!("failed decoding update: {:?}", e);
-        Err(e)
+        e
         })?;
 
     // send the params to the fridge
@@ -226,8 +225,7 @@ fn until_2038() -> Duration {
         .expect("failed making year 2038");
     let dur = time_2038.duration_since(std::time::SystemTime::now()).expect("Failed unix epoch duration");
     // 100 day leeway for bad clocks
-    let dur = dur - Duration::from_secs(3600*24*100);
-    dur
+    dur - Duration::from_secs(3600*24*100)
 }
 
 async fn listen_test(server: tide::Server<WebState>, 
@@ -263,9 +261,17 @@ pub async fn listen_http(fridge: WeakAddr<fridge::Fridge>, config: &'static Conf
     // https://github.com/http-rs/tide/issues/614
     // Not sure why this isn't a default?
     server.with(After(|mut res: Response| async {
-        if let Some(err) = res.take_error() {
-            res.set_body(err.to_string())
+        debug!("response {:?}", res);
+
+        let st = res.status();
+        if st == tide::StatusCode::NotFound {
+            res.set_body(format!("{} {}", st, st.canonical_reason()));
         }
+        
+        if let Some(err) = res.take_error() {
+            res.set_body(err.to_string());
+        }
+
         Ok(res)
     }));
 

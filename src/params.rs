@@ -75,9 +75,7 @@ impl Params {
         af.write(|mut f| {
             serde_json::ser::to_writer(&mut f, self)?;
             f.write_all(b"\n")
-        }).or_else(|e|
-            Err(anyhow!("Writing params failed: {}", e))
-        )
+        }).map_err(|e| anyhow!("Writing params failed: {}", e))
     }
 
 }

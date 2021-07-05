@@ -96,14 +96,14 @@ impl StepIntegrator {
         }
     }
 
-    pub fn set_limit(&mut self, limit: Duration) {
+    pub fn _set_limit(&mut self, limit: Duration) {
         self.limit = limit;
         self.trim();
     }
 
     pub fn integrate(&self) -> Duration {
         let durs = self.on_periods.iter().map(|p| {
-            let end = p.end.unwrap_or_else(|| Instant::now());
+            let end = p.end.unwrap_or(Instant::now());
             end - p.start
         });
         durs.sum()

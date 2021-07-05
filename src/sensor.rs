@@ -65,17 +65,12 @@ impl Actor for OneWireSensor {
 impl OneWireSensor {
 
     pub fn new(config: &'static Config, target: WeakAddr<dyn Subscriber<Readings>>) -> Self {
-        let s = OneWireSensor {
+        OneWireSensor {
             config,
             target,
             therm_re: regex::Regex::new("(?m).* YES\n.*t=(.*)\n").unwrap(),
             timer: Timer::default(),
-        };
-
-        // TODO actor
-        // let dur = Duration::new(self.config.sensor_interval, 0);
-        // ctx.schedule(Duration::from_millis(0), dur, ctx.myself(), None, SendReading);
-        s
+        }
     }
 
     async fn get_readings(&self) -> Result<Readings> {
@@ -188,8 +183,8 @@ impl TestSensor {
     async fn get_readings(&self) -> Result<Readings> {
         let mut r = Readings::new();
         r.add("ambient", 31.2);
-        r.add(&self.config.wort_name, Self::try_read("test_wort.txt").await.unwrap_or_else(|_| 18.123));
-        r.add(&self.config.fridge_name, Self::try_read("test_fridge.txt").await.unwrap_or_else(|_| 20.233));
+        r.add(&self.config.wort_name, Self::try_read("test_wort.txt").await.unwrap_or(18.123));
+        r.add(&self.config.fridge_name, Self::try_read("test_fridge.txt").await.unwrap_or(20.233));
         debug!("get_readings {:?}", r);
         Ok(r)
     }
