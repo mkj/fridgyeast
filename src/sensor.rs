@@ -96,7 +96,7 @@ impl OneWireSensor {
         path.push(n);
         path.push("temperature");
         let s = read_to_string(path).await.context("Error reading w1 sensor")?;
-        Ok(f32::from_str(&s).context("Sensor reading isn't a number")? / 1000.)
+        Ok(f32::from_str(str::trim(&s)).context("Sensor reading isn't a number")? / 1000.)
     }
 
     async fn sensor_names(&self) -> Result<Vec<String>> {
