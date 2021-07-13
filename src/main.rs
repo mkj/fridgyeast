@@ -18,6 +18,7 @@ mod types;
 mod params;
 mod web;
 mod actzero_pubsub;
+mod timeseries;
 
 use crate::config::Config;
 

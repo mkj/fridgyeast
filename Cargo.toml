@@ -37,6 +37,7 @@ askama_tide = "= 0.13.0"
 
 askama = { version = "0.10", features = ["serde-json", "with-tide"] }
 
+rusqlite = { version = "0.25", features = ["backup", "bundled"] }
 
 [profile.release]
 opt-level = 's'

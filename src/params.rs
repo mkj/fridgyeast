@@ -43,7 +43,7 @@ impl Params {
             }
     }
 
-    fn try_load<P: AsRef<Path>>(path: P) -> Result<Params> {
+    fn try_load(path: &Path) -> Result<Params> {
         let mut s = String::new();
         File::open(path)?.read_to_string(&mut s)?;
         // XXX Ok(...) needed here because of anyhow and serde errors?
