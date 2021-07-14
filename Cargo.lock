@@ -847,6 +847,7 @@ dependencies = [
  "async-std",
  "async-trait",
  "atomicwrites",
+ "base64 0.13.0",
  "config",
  "futures",
  "log",

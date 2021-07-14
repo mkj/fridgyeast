@@ -19,6 +19,7 @@ mod params;
 mod web;
 mod actzero_pubsub;
 mod timeseries;
+mod rusqlmem;
 
 use crate::config::Config;
 

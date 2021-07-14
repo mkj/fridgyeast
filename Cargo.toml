@@ -20,6 +20,8 @@ async-std = { version = "1.9", features = ["attributes"] }
 async-trait = "0.1"
 async-io = "1.1"
 
+base64 = "0.13"
+
 act-zero = { version = "0.4", features = ["async-std"] }
 
 
