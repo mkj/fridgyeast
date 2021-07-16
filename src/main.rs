@@ -48,7 +48,6 @@ fn run(args: &Args) -> Result<()> {
     cf.nowait = args.nowait;
     cf.dryrun = args.dryrun;
     cf.testssl = args.testssl;
-    let cf : &'static Config = Box::leak(Box::new(cf));
 
     debug!("Running in debug mode");
     if cf.testmode {
@@ -56,11 +55,13 @@ fn run(args: &Args) -> Result<()> {
         if cf.testssl {
             info!("Using real ssl though");
         }
+        cf.sensor_interval = 2;
     }
     if cf.dryrun {
         info!("Running in dry run mode");
     }
 
+    let cf : &'static Config = Box::leak(Box::new(cf));
     // start actor system
     let spawner = act_zero::runtimes::async_std::Runtime;
     let fridge = Addr::new(&spawner, fridge::Fridge::try_new(&cf)?)?;

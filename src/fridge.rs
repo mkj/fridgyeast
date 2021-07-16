@@ -4,9 +4,11 @@ use {
     anyhow::{Result,Context,bail,anyhow},
 };
 
+use async_std::task::spawn;
 use async_trait::async_trait;
 use crate::actzero_pubsub::Subscriber;
-use std::time::{Duration,Instant};
+use std::time::{SystemTime,Duration,Instant};
+use async_std::task::block_on;
 
 use act_zero::*;
 use act_zero::runtimes::async_std::spawn_actor;
@@ -21,6 +23,7 @@ use crate::params::Params;
 use super::config::Config;
 
 use super::sensor;
+use super::timeseries::TimeSeries;
 use super::types::*;
 
 #[derive(Debug,Clone)]
@@ -64,6 +67,7 @@ pub struct Fridge {
     often_badwort: NotTooOften,
 
     sensor: Option<Addr<dyn Actor>>,
+    timeseries: Addr<TimeSeries>,
 }
 
 enum FridgeOutput {
@@ -77,6 +81,11 @@ impl Drop for Fridge {
             info!("Fridge turns off at shutdown");
         }
         self.turn_off();
+
+        // make sure timeseries has flushed to disk
+        let t = self.timeseries.termination();
+        self.timeseries = Addr::detached();
+        block_on(t);
     }
 }
 
@@ -132,7 +141,12 @@ impl Fridge {
     pub fn try_new(config: &'static Config) -> Result<Self> {
         let output = Self::make_output(&config)?;
 
-        let mut f = Fridge { 
+        let timeseries = spawn_actor(TimeSeries::new(
+            std::path::Path::new("fridgyeast.db"),
+            30,
+            Duration::from_secs(15*60))?);
+
+        let mut f = Fridge {
             config,
             params: Params::load(&config)?,
             on: false,
@@ -148,6 +162,7 @@ impl Fridge {
             timer: Timer::default(),
             started: Instant::now(),
             sensor: None,
+            timeseries,
         };
 
         // Early check the fridge can turn off
@@ -163,6 +178,10 @@ impl Fridge {
 
         if self.temp_wort.is_some() {
             self.wort_valid_time = Instant::now();
+        }
+
+        if let Some(t) = self.temp_wort {
+            send!(self.timeseries.add(SystemTime::now(), "wort", t));
         }
 
         self.update();

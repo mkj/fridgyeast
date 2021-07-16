@@ -19,8 +19,7 @@ use async_std::prelude::*;
 use async_std::fs::read_to_string;
 
 use std::str::FromStr;
-
-
+use rand::Rng;
 
 use super::types::*;
 use super::config::Config;
@@ -153,11 +152,17 @@ impl TestSensor {
         }
     }
 
+    fn jitter(x: f32) -> f32 {
+        x + rand::thread_rng().gen_range(-1.0..1.0)
+    }
+
     async fn get_readings(&self) -> Result<Readings> {
         let mut r = Readings::new();
-        r.add("ambient", 31.2);
-        r.add(&self.config.wort_name, Self::try_read("test_wort.txt").await.unwrap_or(18.123));
-        r.add(&self.config.fridge_name, Self::try_read("test_fridge.txt").await.unwrap_or(20.233));
+        r.add("ambient", Self::jitter(31.2));
+        r.add(&self.config.wort_name,
+            Self::jitter(Self::try_read("test_wort.txt").await.unwrap_or(18.123)));
+        r.add(&self.config.fridge_name,
+            Self::jitter(Self::try_read("test_fridge.txt").await.unwrap_or(20.233)));
         debug!("get_readings {:?}", r);
         Ok(r)
     }
