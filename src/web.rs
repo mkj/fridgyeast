@@ -5,6 +5,7 @@ use log::{debug, info, warn, error};
 
 use std::net::ToSocketAddrs;
 
+
 use crate::Config;
 use tide::sessions::Session;
 use anyhow::{Result,anyhow,Context};
@@ -19,9 +20,12 @@ use tide::{Request,Response,StatusCode};
 use tide_acme::{AcmeConfig, TideRustlsExt};
 use tide::listener::Listener;
 
+use plotters::prelude::*;
+
 use crate::fridge;
 use crate::params::Params;
 use crate::types::DurationFormat;
+use crate::timeseries::Seq;
 
 #[derive(Clone)]
 struct WebState {
@@ -92,10 +96,13 @@ struct SetPage<'a> {
 
     numinputs: Vec<NumInput>,
     yesnoinputs: Vec<YesNoInput>,
+    worts: Seq,
+    svg: String,
 }
 
 async fn handle_set(req: Request<WebState>) -> tide::Result {
     let s = req.state();
+    let worts = call!(s.fridge.history("wort".into())).await?;
     let status = call!(s.fridge.get_status()).await?;
 
     let ses: &Session = req.ext().ok_or_else(|| anyhow!("Missing session"))?;
@@ -111,6 +118,8 @@ async fn handle_set(req: Request<WebState>) -> tide::Result {
 
     debug!("cookies are {:?}", req.cookie("fridgyeast-moreauth"));
 
+    let svg = svg(s).await?;
+
     let mut s = SetPage {
         status,
         csrf_blob: "unused", // hopefully SameSite=Strict is enough for now
@@ -122,6 +131,9 @@ async fn handle_set(req: Request<WebState>) -> tide::Result {
 
         numinputs: vec![],
         yesnoinputs: vec![],
+
+        worts,
+        svg,
     };
 
     s.yesnoinputs.push(YesNoInput::new("running", "Running"));
@@ -144,6 +156,46 @@ async fn handle_set(req: Request<WebState>) -> tide::Result {
     Ok(r)
 }
 
+async fn handle_logout(mut req: Request<WebState>) -> tide::Result {
+    req.session_mut().destroy();
+    Ok(tide::Redirect::new("/").into())
+}
+
+async fn svg(state: &WebState) -> Result<String> {
+    let worts = call!(state.fridge.history("wort".into())).await?;
+    let mut out = String::new();
+    {
+        let w = 300f32;
+        let ratio = (1f32+5f32.powf(0.5)) / 2f32;
+        let h = w / (ratio);
+        let area = plotters_svg::SVGBackend::with_string(&mut out, (w as u32, h as u32)) .into();
+        let mut plot = ChartBuilder::on(&area)
+        .build_cartesian_2d(worts.first().unwrap().0..worts.last().unwrap().0, 0f32..30f32)?;
+
+        // plot.configure_mesh().draw();
+
+        plot.draw_series(
+            LineSeries::new(
+                worts,
+                &BLUE,
+            )
+        )?;
+    }
+    Ok(out)
+}
+
+
+async fn handle_history(req: Request<WebState>) -> tide::Result {
+    let s = req.state();
+    let out = svg(s).await?;
+
+    let resp = Response::builder(200)
+    .body(out)
+    .content_type(tide::http::mime::SVG)
+    .build();
+    Ok(resp)
+}
+
 #[derive(askama::Template)]
 #[template(path="register.html")]
 struct Register<'a> {
@@ -152,11 +204,6 @@ struct Register<'a> {
     known: bool,
     email: &'a str,
     cookie_hash: &'a str,
-}
-
-async fn handle_logout(mut req: Request<WebState>) -> tide::Result {
-    req.session_mut().destroy();
-    Ok(tide::Redirect::new("/").into())
 }
 
 async fn handle_register(mut req: Request<WebState>) -> tide::Result {
@@ -268,7 +315,7 @@ pub async fn listen_http(fridge: WeakAddr<fridge::Fridge>, config: &'static Conf
         if st == tide::StatusCode::NotFound {
             res.set_body(format!("{} {}", st, st.canonical_reason()));
         }
-        
+
         if let Some(err) = res.take_error() {
             res.set_body(err.to_string());
         }
@@ -291,6 +338,7 @@ pub async fn listen_http(fridge: WeakAddr<fridge::Fridge>, config: &'static Conf
 
     // url handlers
     server.at("/").get(handle_set);
+    server.at("/history.svg").get(handle_history);
     server.at("/update").post(handle_update);
     server.at("/register").get(handle_register);
     server.at("/logout").get(handle_logout);

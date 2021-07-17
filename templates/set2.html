@@ -84,6 +84,21 @@ Session id <code>{{cookie_hash}}</code>
 {% if !allowed %} 
 <span id="reload"> <a href=".">Reload</a></span>
 {% endif %}
+<div>
+
+<img src="history.svg"/>
+</div>
+
+{% if testmode %}
+<div>
+Worts
+</div>
+{% for w in self.worts %}
+<div>
+{{ "{:?}"|format(w) }}
+</div>
+{% endfor %}
+{% endif %}
 
 </body>
 

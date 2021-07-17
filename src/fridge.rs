@@ -23,7 +23,7 @@ use crate::params::Params;
 use super::config::Config;
 
 use super::sensor;
-use super::timeseries::TimeSeries;
+use super::timeseries::{TimeSeries,Seq};
 use super::types::*;
 
 #[derive(Debug,Clone)]
@@ -143,8 +143,8 @@ impl Fridge {
 
         let timeseries = spawn_actor(TimeSeries::new(
             std::path::Path::new("fridgyeast.db"),
-            30,
-            Duration::from_secs(15*60))?);
+            60,
+            chrono::Duration::hours(3))?);
 
         let mut f = Fridge {
             config,
@@ -181,10 +181,14 @@ impl Fridge {
         }
 
         if let Some(t) = self.temp_wort {
-            send!(self.timeseries.add(SystemTime::now(), "wort", t));
+            send!(self.timeseries.add("wort", t));
         }
 
         self.update();
+    }
+
+    pub async fn history(&mut self, name: String) -> ActorResult<Seq> {
+        Ok(call!(self.timeseries.get(name)))
     }
 
     pub async fn set_params(&mut self, p: Params) -> ActorResult<Result<()>> {

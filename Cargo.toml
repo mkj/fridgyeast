@@ -20,6 +20,7 @@ async-std = { version = "1.9", features = ["attributes"] }
 async-trait = "0.1"
 async-io = "1.1"
 
+chrono = "0.4"
 base64 = "0.13"
 
 act-zero = { version = "0.4", features = ["async-std"] }
@@ -40,6 +41,9 @@ askama_tide = "= 0.13.0"
 askama = { version = "0.10", features = ["serde-json", "with-tide"] }
 
 rusqlite = { version = "0.25", features = ["backup", "bundled"] }
+
+plotters = "0.3"
+plotters-svg = "0.3"
 
 [profile.release]
 opt-level = 's'
