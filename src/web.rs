@@ -174,10 +174,11 @@ async fn svg(state: &WebState) -> Result<String> {
 
         // plot.configure_mesh().draw();
 
+        let amber = RGBColor(0xff, 0xa8, 0);
         plot.draw_series(
             LineSeries::new(
                 worts,
-                &BLUE,
+                &amber,
             )
         )?;
     }

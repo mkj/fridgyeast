@@ -42,11 +42,11 @@ askama = { version = "0.10", features = ["serde-json", "with-tide"] }
 
 rusqlite = { version = "0.25", features = ["backup", "bundled"] }
 
-plotters = "0.3"
+plotters = { version = "0.3", default-features = false, features = ["svg_backend", "datetime", "line_series", "point_series"] }
 plotters-svg = "0.3"
 
 [profile.release]
-opt-level = 's'
+opt-level = 'z'
 lto = "thin"
 debug = 0
 
