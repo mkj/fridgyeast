@@ -36,6 +36,11 @@ async fn wait_exit() -> Result<()> {
 
     // Receive a byte that indicates the Ctrl-C signal occurred.
     r.read_exact(&mut [0]).await?;
+    // Make sure we exit normally if something goes wrong during cleanup
+    signal_hook::low_level::emulate_default_handler(signal_hook::consts::signal::SIGINT).unwrap_or_else(
+        |e| warn!("Couldn't restore SIGINT handler {}", e));
+    signal_hook::low_level::emulate_default_handler(signal_hook::consts::signal::SIGTERM).unwrap_or_else(
+        |e| warn!("Couldn't restore SIGTERM handler {}", e));
     info!("Exiting with signal");
     Ok(())
 }
