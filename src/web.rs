@@ -127,7 +127,7 @@ async fn handle_set(req: Request<WebState>) -> tide::Result {
 
     debug!("cookies are {:?}", req.cookie("fridgyeast-moreauth"));
 
-    let svg = svg(s).await?;
+    let svg = svg(s).await.unwrap_or_default();
 
     let mut s = SetPage {
         status,
