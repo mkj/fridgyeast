@@ -277,6 +277,18 @@ async fn handle_status(req: Request<WebState>) -> tide::Result {
     Ok(resp)
 }
 
+async fn handle_panic(req: Request<WebState>) -> tide::Result {
+    let s = req.state();
+    if s.config.testmode {
+        panic!("seeing what happens");
+    }
+    let resp = Response::builder(200)
+    .body("Real fridges won't panic")
+    .content_type(tide::http::mime::PLAIN)
+    .build();
+    Ok(resp)
+}
+
 fn until_2038() -> Duration {
     let time_2038 = std::time::UNIX_EPOCH.checked_add(Duration::from_secs(i32::MAX as u64))
         .expect("failed making year 2038");
@@ -353,6 +365,7 @@ pub async fn listen_http(fridge: WeakAddr<fridge::Fridge>, config: &'static Conf
     server.at("/register").get(handle_register);
     server.at("/logout").get(handle_logout);
     server.at("/status").get(handle_status);
+    server.at("/panic").get(handle_panic);
 
     let mut addrs = vec![];
     for l in &config.listen {
