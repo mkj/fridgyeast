@@ -26,20 +26,8 @@
 <i>Test Mode</i><br/>
 {% endif %}
 <div id="current_fridge">
-Wort 
-{% match status.temp_wort %}
- {% when Some with (t) %}
-  {{ "{:.1}"|format(t) }}° 
- {% when None %}
-  ?
-{% endmatch %}
-Fridge 
-{% match status.temp_fridge %}
- {% when Some with (t) %}
-  {{ "{:.1}"|format(t) }}° 
- {% when None %}
-  ?
-{% endmatch %}
+Wort {{ self.format_degrees(status.temp_wort) }}
+Fridge {{ self.format_degrees(status.temp_fridge) }}
 Fridge is 
 {% if status.on %}
 On

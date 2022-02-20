@@ -100,6 +100,15 @@ struct SetPage<'a> {
     svg: String,
 }
 
+impl<'a> SetPage<'a> {
+    fn format_degrees(&self, t: &Option<f32>) -> String {
+        match t {
+            Some(t) => format!("{:.1}°", t),
+            None => "?".into(),
+        }
+    }
+}
+
 async fn handle_set(req: Request<WebState>) -> tide::Result {
     let s = req.state();
     let worts = call!(s.fridge.history("wort".into())).await?;
