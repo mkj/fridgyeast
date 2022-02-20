@@ -8,6 +8,7 @@ use async_std::task::spawn;
 use async_trait::async_trait;
 use crate::actzero_pubsub::Subscriber;
 use std::time::{SystemTime,Duration,Instant};
+use std::thread;
 use async_std::task::block_on;
 
 use act_zero::*;
@@ -230,9 +231,19 @@ impl Fridge {
         } else {
             let pin = Pin::new(config.fridge_gpio_pin.into());
             pin.export().context("Exporting fridge GPIO failed")?;
-            // Direction::Low is direction=out+value=0
-            pin.set_direction(Direction::Low).context("Exporting fridge gpio failed")?;
-            Ok(FridgeOutput::Gpio(pin))
+            // there's a race between sysfs and udev, try for a while
+            for i in (0..10).rev() {
+                // Direction::Low is direction=out+value=0
+                if let Err(e) = pin.set_direction(Direction::Low)
+                        .context("Exporting fridge gpio failed") {
+                        if i == 0 {
+                            bail!(e);
+                        } else {
+                            thread::sleep(Duration::from_millis(500));
+                        }
+                }
+            }
+            return Ok(FridgeOutput::Gpio(pin));
         }
     }
 
