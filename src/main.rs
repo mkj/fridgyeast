@@ -60,7 +60,7 @@ fn run(args: &Args) -> Result<()> {
         if cf.testssl {
             info!("Using real ssl though");
         }
-        cf.sensor_interval = 2;
+        cf.sensor_interval = 1;
     }
     if cf.dryrun {
         info!("Running in dry run mode");

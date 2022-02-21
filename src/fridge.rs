@@ -185,6 +185,10 @@ impl Fridge {
             send!(self.timeseries.add("wort", t));
         }
 
+        if let Some(t) = self.temp_fridge {
+            send!(self.timeseries.add("fridge", t));
+        }
+
         self.update();
     }
 
@@ -316,6 +320,7 @@ impl Fridge {
             debug!("on_percent {}, overshoot {}", on_ratio * 100.0, overshoot);
 
             let mut turn_off = false;
+            // TODO: if let &&, then we can avoid unwrap
             if self.temp_wort.is_some() && !self.params.nowort {
                 let t = self.temp_wort.unwrap();
                 // use the wort temperature

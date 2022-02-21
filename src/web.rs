@@ -2,6 +2,7 @@ use std::time::Duration;
 
 #[allow(unused_imports)]
 use log::{debug, info, warn, error};
+use plotters::coord::ranged1d::{NoDefaultFormatting, ValueFormatter};
 
 use std::net::ToSocketAddrs;
 
@@ -21,6 +22,7 @@ use tide_acme::{AcmeConfig, TideRustlsExt};
 use tide::listener::Listener;
 
 use plotters::prelude::*;
+use plotters::coord::ranged1d::KeyPointHint;
 
 use crate::fridge;
 use crate::params::Params;
@@ -170,24 +172,86 @@ async fn handle_logout(mut req: Request<WebState>) -> tide::Result {
     Ok(tide::Redirect::new("/").into())
 }
 
+struct DegreeValue {
+    lower: f32,
+    upper: f32,
+}
+
+impl Ranged for DegreeValue {
+    type ValueType = f32;
+    type FormatOption = NoDefaultFormatting;
+    fn map(&self, value: &Self::ValueType, limit: (i32, i32)) -> i32 {
+        let pix: f32 = (limit.1 - limit.0) as f32;
+        limit.0 + (pix * (value - self.lower) / (self.upper - self.lower)) as i32
+    }
+
+    fn range(&self) -> std::ops::Range<Self::ValueType> {
+        self.lower..self.upper
+    }
+
+    fn key_points<Hint: KeyPointHint>(&self, hint: Hint) -> Vec<Self::ValueType> {
+        let s = (self.lower as i32) / 10 * 10;
+        let e = (self.upper as i32) / 10 * 10;
+        let x = (s..=e).step_by(10).map(|i| i as f32).collect();
+        x
+    }
+}
+
+impl ValueFormatter<f32> for DegreeValue {
+    fn format(v: &f32) -> String {
+        format!("{:.0}°", v)
+    }
+}
+
 async fn svg(state: &WebState) -> Result<String> {
     let worts = call!(state.fridge.history("wort".into())).await?;
+    let fridges = call!(state.fridge.history("fridge".into())).await?;
     let mut out = String::new();
     {
         let w = 300f32;
+        // golden ratio is as good as any I guess
         let ratio = (1f32+5f32.powf(0.5)) / 2f32;
         let h = w / (ratio);
         let area = plotters_svg::SVGBackend::with_string(&mut out, (w as u32, h as u32)) .into();
-        let mut plot = ChartBuilder::on(&area)
-        .build_cartesian_2d(worts.first().unwrap().0..worts.last().unwrap().0, 0f32..30f32)?;
-
-        // plot.configure_mesh().draw();
 
         let amber = RGBColor(0xff, 0xa8, 0);
+        let fridgeblue = RGBColor(0x93, 0xc8, 0xff);
+
+        let time1 = if state.config.testmode {
+            chrono::Utc::now() - chrono::Duration::minutes(10)
+        } else {
+            chrono::Utc::now() - chrono::Duration::hours(8)
+
+        };
+        let time2 = chrono::Utc::now();
+        let time_range = time1..time2
+        // .with_key_points(time1. )
+        ;
+        let temp_range = DegreeValue { lower: -2f32, upper: 32f32 };
+
+        let mut plot = ChartBuilder::on(&area)
+        .y_label_area_size(40)
+        .build_cartesian_2d(time_range, temp_range)?;
+
+        let ruler = RGBColor(0xaa,0xaa,0xaa).stroke_width(1);
+
+        plot.configure_mesh()
+        .disable_x_mesh()
+        .axis_style(ruler.stroke_width(0))
+        .bold_line_style(ruler)
+        .set_all_tick_mark_size(1)
+        .draw()?;
+
+        plot.draw_series(
+            LineSeries::new(
+                fridges,
+                fridgeblue.stroke_width(3),
+            )
+        )?;
         plot.draw_series(
             LineSeries::new(
                 worts,
-                &amber,
+                amber.stroke_width(3),
             )
         )?;
     }
