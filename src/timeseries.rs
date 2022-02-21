@@ -109,7 +109,8 @@ impl TimeSeries {
 	}
 
 	fn init_schema(t: &mut rusqlite::Transaction) -> Result<()> {
-		t.execute("create table points (time integer primary key, name, value, count)", [])?;
+		t.execute("create table points (time, name, value, count)", [])?;
+		t.execute("create unique index main_index on points (name, time)", [])?;
 		Ok(())
 	}
 }
@@ -160,7 +161,7 @@ use super::*;
 #[test]
 fn new_timeseries() -> Result<()> {
 	let t = TimeSeries::new(Path::new("ff.db"), 3, Duration::from_secs(60*60*24*3))?;
-	t.add(SystemTime::now(), 3.2f32)?;
+    send!(t.add("wort", 3.2f32));
 	block_on(t.db.flush())?;
 	Ok(())
 }
