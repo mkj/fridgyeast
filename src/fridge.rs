@@ -145,7 +145,7 @@ impl Fridge {
         let timeseries = spawn_actor(TimeSeries::new(
             std::path::Path::new("fridgyeast.db"),
             60,
-            chrono::Duration::hours(3))?);
+            chrono::Duration::days(7))?);
 
         let mut f = Fridge {
             config,

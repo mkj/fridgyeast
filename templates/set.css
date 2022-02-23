@@ -80,18 +80,10 @@ input[type="button"]#savebutton {
     margin-top: 10pt;
 }
 
-span.inputrow {
-    //vertical-align: center;
-}
-
 #plot {
     margin-top: 8pt;
 }
 
 svg line {
-    shape-rendering:crispedges
-}
-
-svg polyline {
     shape-rendering:crispedges
 }

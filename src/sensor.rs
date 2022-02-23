@@ -153,7 +153,7 @@ impl TestSensor {
     }
 
     fn jitter(x: f32) -> f32 {
-        x + rand::thread_rng().gen_range(-1.0..1.0)
+        x + rand::thread_rng().gen_range(-3.0..3.0)
     }
 
     async fn get_readings(&self) -> Result<Readings> {
