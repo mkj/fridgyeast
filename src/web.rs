@@ -189,11 +189,10 @@ impl Ranged for DegreeValue {
         self.lower..self.upper
     }
 
-    fn key_points<Hint: KeyPointHint>(&self, hint: Hint) -> Vec<Self::ValueType> {
+    fn key_points<Hint: KeyPointHint>(&self, _hint: Hint) -> Vec<Self::ValueType> {
         let s = (self.lower as i32) / 10 * 10;
         let e = (self.upper as i32) / 10 * 10;
-        let x = (s..=e).step_by(10).map(|i| i as f32).collect();
-        x
+        (s..=e).step_by(10).map(|i| i as f32).collect()
     }
 }
 
@@ -217,11 +216,10 @@ async fn svg(state: &WebState) -> Result<String> {
         let amber = RGBColor(0xff, 0xa8, 0);
         let fridgeblue = RGBColor(0x93, 0xc8, 0xff);
 
-        let time1 = if state.config.testmode {
-            chrono::Utc::now() - chrono::Duration::minutes(10)
+        let (time1, time_desc) = if state.config.testmode {
+            (chrono::Utc::now() - chrono::Duration::minutes(10), "10 minutes")
         } else {
-            chrono::Utc::now() - chrono::Duration::hours(8)
-
+            (chrono::Utc::now() - chrono::Duration::hours(8), "8 hours")
         };
         let time2 = chrono::Utc::now();
         let time_range = time1..time2
@@ -231,15 +229,18 @@ async fn svg(state: &WebState) -> Result<String> {
 
         let mut plot = ChartBuilder::on(&area)
         .y_label_area_size(40)
+        .x_label_area_size(10)
         .build_cartesian_2d(time_range, temp_range)?;
 
         let ruler = RGBColor(0xaa,0xaa,0xaa).stroke_width(1);
 
         plot.configure_mesh()
         .disable_x_mesh()
+        .disable_x_axis()
         .axis_style(ruler.stroke_width(0))
         .bold_line_style(ruler)
         .set_all_tick_mark_size(1)
+        .x_desc(time_desc)
         .draw()?;
 
         plot.draw_series(
