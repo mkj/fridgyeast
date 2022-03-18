@@ -89,7 +89,7 @@ impl RusqlMem {
 	fn load_to_mem(&self) -> Result<()> {
 		let f = &*block_on(self.filedb.lock());
 		let mut m = self.db();
-		let b = Backup::new(&f, &mut m)?;
+		let b = Backup::new(f, &mut m)?;
 		b.step(-1)?;
 		Ok(())
 	}

@@ -69,8 +69,8 @@ fn run(args: &Args) -> Result<()> {
     let cf : &'static Config = Box::leak(Box::new(cf));
     // start actor system
     let spawner = act_zero::runtimes::async_std::Runtime;
-    let fridge = Addr::new(&spawner, fridge::Fridge::try_new(&cf)?)?;
-    let webserver = web::listen_http(fridge.downgrade(), &cf);
+    let fridge = Addr::new(&spawner, fridge::Fridge::try_new(cf)?)?;
+    let webserver = web::listen_http(fridge.downgrade(), cf);
 
     let webserver = webserver.fuse();
     let exit = wait_exit().fuse();

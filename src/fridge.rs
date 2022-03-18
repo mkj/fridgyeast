@@ -140,7 +140,7 @@ impl Actor for Fridge {
 
 impl Fridge {
     pub fn try_new(config: &'static Config) -> Result<Self> {
-        let output = Self::make_output(&config)?;
+        let output = Self::make_output(config)?;
 
         let timeseries = spawn_actor(TimeSeries::new(
             std::path::Path::new("fridgyeast.db"),
@@ -149,7 +149,7 @@ impl Fridge {
 
         let mut f = Fridge {
             config,
-            params: Params::load(&config)?,
+            params: Params::load(config)?,
             on: false,
             temp_wort: None,
             temp_fridge: None,
@@ -198,7 +198,7 @@ impl Fridge {
 
     pub async fn set_params(&mut self, p: Params) -> ActorResult<Result<()>> {
         self.params = p;
-        let pp = to_string_pretty(&self.params).expect("Failed serialising params");
+        let pp = to_string_pretty(&self.params).unwrap_or("Failed serialising params".into());
         info!("New params: {}", pp);
 
         // quickly update the fridge for real world interactivity
@@ -247,7 +247,7 @@ impl Fridge {
                         }
                 }
             }
-            return Ok(FridgeOutput::Gpio(pin));
+            Ok(FridgeOutput::Gpio(pin))
         }
     }
 

@@ -23,7 +23,7 @@ impl Readings {
     }
 
     pub fn get_temp(&self, name: &str) -> Option<f32> {
-        self.temps.get(name).map(|f| *f)
+        self.temps.get(name).copied()
     }
 }
 
