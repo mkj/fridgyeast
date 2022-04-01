@@ -45,34 +45,29 @@ impl Config {
         include_str!("defconfig.toml")
     }
 
-    fn default() -> Result<config::Config> {
-        let mut c = config::Config::default();
-        // defaults for args
-        c.set_default("debug", false)?;
-        c.set_default("testmode", false)?;
-        c.set_default("nowait", false)?;
-        c.set_default("dryrun", false)?;
-        c.set_default("testssl", false)?;
-
-        // hidden config, not in defconfig.toml
-        c.set_default("sensor_interval", 10)?; // 10 seconds
-        c.set_default("params_dir", ".")?;
-        Ok(c)
-    }
-
     pub fn load(conf_file: &str) -> Result<Self> {
-        let mut c = Self::default()?;
-        c.merge(config::File::with_name(conf_file))
-            .map_err(|e| match e {
-                config::ConfigError::NotFound(_) => anyhow!("Missing config {}", conf_file),
-                _ => Error::new(e).context(format!("Problem parsing {}", conf_file)),
-            })?;
-        c.merge(config::Environment::with_prefix("TEMPLOG"))
-            .context("Failed loading from TEMPLOG_ environment variables")?;
+        let c = config::Config::builder()
+        // defaults for args
+        .set_default("debug", false)?
+        .set_default("testmode", false)?
+        .set_default("nowait", false)?
+        .set_default("dryrun", false)?
+        .set_default("testssl", false)?
+        // hidden config, not in defconfig.toml
+        .set_default("sensor_interval", 10)? // 10 seconds
+        .set_default("params_dir", ".")?
+        .add_source(config::File::with_name(conf_file))
+        .add_source(config::Environment::with_prefix("TEMPLOG"))
+        .build()
+        .map_err(|e| match e {
+            config::ConfigError::NotFound(_) => anyhow!("Missing config {}", conf_file),
+            _ => Error::new(e).context(format!("Problem parsing {}", conf_file)),
+        })?;
+
 
         let conf: Self = c
-            .try_into()
-            .with_context(|| format!("Problem loading config {}", conf_file))?;
+            .try_deserialize()
+            .map_err(|e| Error::new(e).context(format!("Problem loading config {}", conf_file)))?;
         Ok(conf)
     }
 }
