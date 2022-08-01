@@ -140,8 +140,9 @@ fn setup_log(debug: bool) -> Result<()> {
         false => LevelFilter::Info,
     };
     let logconf = simplelog::ConfigBuilder::new()
-    .set_time_format_str("%Y-%m-%d %H:%M:%S%.3f")
-    .set_time_to_local(true)
+    // .set_time_format_custom(&"%Y-%m-%d %H:%M:%S%.3f")
+    .set_time_format_rfc2822()
+    .set_time_offset_to_local().expect("Couldn't get local timezone")
     .build();
     CombinedLogger::init(
         vec![

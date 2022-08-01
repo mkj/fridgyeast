@@ -12,7 +12,7 @@ serde_json = "1.0"
 rand = "0.8"
 atomicwrites = "0.3"
 log = "0.4"
-simplelog = "0.11"
+simplelog = "0.12"
 
 futures = "0.3"
 signal-hook = "0.3"
@@ -26,7 +26,7 @@ base64 = "0.13"
 act-zero = { version = "0.4", features = ["async-std"] }
 
 # outdated, new version changes API
-config = { version = "0.12", features = ["toml"], default-features = false }
+config = { version = "0.13", features = ["toml"], default-features = false }
 
 sysfs_gpio = "0.6"
 
@@ -34,13 +34,13 @@ sysfs_gpio = "0.6"
 # don't want default logging feature
 tide = { version = "0.16", default-features = false, features = ["h1-server", "sessions"] }
 tide-rustls = "0.3.0"
-tide-compress = { version = "0.9", default-features = false, features = ["deflate"] }
-tide-acme = "0.1"
+tide-compress = { version = "0.10", default-features = false, features = ["deflate"] }
+tide-acme = "0.2"
 askama_tide = "0.14"
 
 askama = { version = "0.11", features = ["serde-json", "with-tide"] }
 
-rusqlite = { version = "0.27", features = ["backup", "bundled"] }
+rusqlite = { version = "0.28", features = ["backup", "bundled"] }
 
 plotters = { version = "0.3", default-features = false, features = ["svg_backend", "datetime", "line_series", "point_series"] }
 plotters-svg = "0.3"
