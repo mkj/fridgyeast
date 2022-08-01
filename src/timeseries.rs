@@ -68,12 +68,33 @@ impl TimeSeries {
 		Produces::ok(())
 	}
 
+	/// Inserts a new datapoint for a stepwise series.
+	pub async fn add_step(&self, name: &str, value: f32) -> ActorResult<()> {
+		println!("add_step {name} {value}");
+		let mut conn = self.db.db();
+		let t = conn.transaction()?;
+		let now = Utc::now().timestamp() as u64;
+		let oldval: Option<f32> = t.query_row(
+			"select value from step_points where name = ? and time <= ? order by time desc limit 1", params![name, now],
+			|r| Ok(r.get(0)?))
+			.optional()?;
+		println!("now {now} oldval {oldval:?} value {value}");
+		if let Some(ov) = oldval {
+			if ov == value {
+				return Produces::ok(());
+			}
+		}
+		t.execute("insert into step_points values (?, ?, ?)", params![now, name, value])?;
+		t.commit()?;
+		Produces::ok(())
+	}
+
 	/// Returns points within the history window
-	/// _TODO_: also return one point prior the the window
-	pub async fn get(&self, name: String) -> ActorResult<Seq> {
+	/// _TODO_: also return one point prior the the window?
+	pub async fn get(&self, name: String, start: DateTime<Utc>) -> ActorResult<Seq> {
 		let r: Result<Seq> = self.db.db()
 		.prepare("select time, value from points where name = ? and time >= ?")?
-		.query_map(params![name, self.earliest()], |r| {
+		.query_map(params![name, start.timestamp()], |r| {
 			let t = Self::int_to_time(r.get(0)?);
 			let v: f32 = r.get(1)?;
 			Ok((t, v))
@@ -81,6 +102,37 @@ impl TimeSeries {
 		.map(|r| r.context("SQL query"))
 		.collect();
 		Produces::ok(r?)
+	}
+
+	/// Returns points within the history window
+	/// _TODO_: also return one point prior the the window?
+	pub async fn get_step(&self, name: String, start: DateTime<Utc>) -> ActorResult<Seq> {
+		let d = self.db.db();
+		let mut p = d
+		.prepare("select time, value from step_points where name = ? and time >= ?")?;
+		let r = p.query_map(params![name, start.timestamp()], |r| {
+			let t = Self::int_to_time(r.get(0)?);
+			let v: f32 = r.get(1)?;
+			Ok((t, v))
+		})?
+		.map(|r| r.context("SQL query"));
+
+		let mut prev = None;
+		let mut res = vec![];
+		for a in r {
+			let a = a?;
+			if let Some(p) = prev {
+				res.push((a.0, p));
+			};
+			prev = Some(a.1);
+			res.push(a);
+		}
+
+		if let Some(prev) = prev {
+			res.push((Utc::now(), prev))
+		}
+
+		Produces::ok(res)
 	}
 
 	pub async fn save(&self) -> ActorResult<()> {
@@ -100,6 +152,7 @@ impl TimeSeries {
 	fn prune(&self) -> Result<()> {
 		let cutoff = self.earliest();
 		self.db.db().execute("delete from points where time < ?", params![cutoff])?;
+		self.db.db().execute("delete from step_points where time < ?", params![cutoff])?;
 		debug!("Pruned memory db prior to {}", cutoff);
 		Ok(())
 	}
@@ -110,7 +163,9 @@ impl TimeSeries {
 
 	fn init_schema(t: &mut rusqlite::Transaction) -> Result<()> {
 		t.execute("create table points (time, name, value, count)", [])?;
-		t.execute("create unique index main_index on points (name, time)", [])?;
+		t.execute("create table step_points (time, name, value)", [])?;
+		t.execute("create unique index points_index on points (name, time)", [])?;
+		t.execute("create unique index step_index on points (name, time)", [])?;
 		Ok(())
 	}
 }

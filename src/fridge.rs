@@ -20,6 +20,8 @@ use sysfs_gpio::{Direction, Pin};
 use serde::Serialize;
 use serde_json::ser::to_string_pretty;
 
+use chrono::{DateTime,offset::Utc};
+
 use crate::params::Params;
 use super::config::Config;
 
@@ -145,7 +147,7 @@ impl Fridge {
         let timeseries = spawn_actor(TimeSeries::new(
             std::path::Path::new("fridgyeast.db"),
             60,
-            chrono::Duration::days(7))?);
+            chrono::Duration::days(60))?);
 
         let mut f = Fridge {
             config,
@@ -165,6 +167,9 @@ impl Fridge {
             sensor: None,
             timeseries,
         };
+
+        send!(f.timeseries.add_step("setpoint", f.params.fridge_setpoint));
+        send!(f.timeseries.save());
 
         // Early check the fridge can turn off
         f.turn(false).context("Initial fridge turn-off")?;
@@ -192,8 +197,12 @@ impl Fridge {
         self.update();
     }
 
-    pub async fn history(&mut self, name: String) -> ActorResult<Seq> {
-        Ok(call!(self.timeseries.get(name)))
+    pub async fn history(&mut self, name: String, start: DateTime<Utc>) -> ActorResult<Seq> {
+        Ok(call!(self.timeseries.get(name, start)))
+    }
+
+    pub async fn history_step(&mut self, name: String, start: DateTime<Utc>) -> ActorResult<Seq> {
+        Ok(call!(self.timeseries.get_step(name, start)))
     }
 
     pub async fn set_params(&mut self, p: Params) -> ActorResult<Result<()>> {
@@ -204,6 +213,8 @@ impl Fridge {
         // quickly update the fridge for real world interactivity
         self.update();
 
+        send!(self.timeseries.add_step("setpoint", self.params.fridge_setpoint));
+        send!(self.timeseries.save());
         let res = self.params.save(self.config);
 
         if let Err(e) = &res {

@@ -98,7 +98,6 @@ struct SetPage<'a> {
 
     numinputs: Vec<NumInput>,
     yesnoinputs: Vec<YesNoInput>,
-    worts: Seq,
     svg: String,
 }
 
@@ -113,7 +112,6 @@ impl<'a> SetPage<'a> {
 
 async fn handle_set(req: Request<WebState>) -> tide::Result {
     let s = req.state();
-    let worts = call!(s.fridge.history("wort".into())).await?;
     let status = call!(s.fridge.get_status()).await?;
 
     let ses: &Session = req.ext().ok_or_else(|| anyhow!("Missing session"))?;
@@ -143,7 +141,6 @@ async fn handle_set(req: Request<WebState>) -> tide::Result {
         numinputs: vec![],
         yesnoinputs: vec![],
 
-        worts,
         svg,
     };
 
@@ -203,59 +200,69 @@ impl ValueFormatter<f32> for DegreeValue {
 }
 
 async fn svg(state: &WebState) -> Result<String> {
-    let worts = call!(state.fridge.history("wort".into())).await?;
-    let fridges = call!(state.fridge.history("fridge".into())).await?;
+
+    let (time1, time_desc) = if state.config.testmode {
+        (chrono::Utc::now() - chrono::Duration::minutes(10), "10 minutes")
+    } else {
+        (chrono::Utc::now() - chrono::Duration::hours(8), "8 hours")
+    };
+    let time2 = chrono::Utc::now();
+    let time_range = time1..time2;
+    let temp_range = DegreeValue { lower: -2f32, upper: 32f32 };
+
+    let worts = call!(state.fridge.history("wort".into(), time1)).await?;
+    let fridges = call!(state.fridge.history("fridge".into(), time1)).await?;
+    let setpoints = call!(state.fridge.history_step("setpoint".into(), time1)).await?;
+    println!("setpoints {setpoints:?}");
     let mut out = String::new();
-    {
-        let w = 300f32;
-        // golden ratio is as good as any I guess
-        let ratio = (1f32+5f32.powf(0.5)) / 2f32;
-        let h = w / (ratio);
-        let area = plotters_svg::SVGBackend::with_string(&mut out, (w as u32, h as u32)) .into();
+    let w = 300f32;
+    // golden ratio is as good as any I guess
+    let ratio = (1f32 + 5f32.powf(0.5)) / 2f32;
+    let h = w / (ratio);
+    let area = plotters_svg::SVGBackend::with_string(&mut out, (w as u32, h as u32)) .into();
 
-        let amber = RGBColor(0xff, 0xa8, 0);
-        let fridgeblue = RGBColor(0x93, 0xc8, 0xff);
+    let amber = RGBColor(0xff, 0xa8, 0);
+    let fridgeblue = RGBColor(0x93, 0xc8, 0xff);
+    let green = RGBColor(0x9a, 0xd7, 0x51);
+    let ruler = RGBColor(0xaa,0xaa,0xaa).stroke_width(1);
 
-        let (time1, time_desc) = if state.config.testmode {
-            (chrono::Utc::now() - chrono::Duration::minutes(10), "10 minutes")
-        } else {
-            (chrono::Utc::now() - chrono::Duration::hours(8), "8 hours")
-        };
-        let time2 = chrono::Utc::now();
-        let time_range = time1..time2
-        // .with_key_points(time1. )
-        ;
-        let temp_range = DegreeValue { lower: -2f32, upper: 32f32 };
+    let mut plot = ChartBuilder::on(&area)
+    .y_label_area_size(40)
+    .x_label_area_size(10)
+    .build_cartesian_2d(time_range, temp_range)?;
 
-        let mut plot = ChartBuilder::on(&area)
-        .y_label_area_size(40)
-        .x_label_area_size(10)
-        .build_cartesian_2d(time_range, temp_range)?;
+    plot.configure_mesh()
+    .disable_x_mesh()
+    .disable_x_axis()
+    .axis_style(ruler.stroke_width(0))
+    .bold_line_style(ruler)
+    .set_all_tick_mark_size(1)
+    .x_desc(time_desc)
+    .draw()?;
 
-        let ruler = RGBColor(0xaa,0xaa,0xaa).stroke_width(1);
+    plot.draw_series(
+        LineSeries::new(
+            fridges,
+            fridgeblue.stroke_width(3),
+        )
+    )?;
+    plot.draw_series(
+        LineSeries::new(
+            worts,
+            amber.stroke_width(3),
+        )
+    )?;
+    println!("setpoints {setpoints:?}");
+    plot.draw_series(
+        LineSeries::new(
+            setpoints,
+            green.stroke_width(1),
+        )
+    )?;
 
-        plot.configure_mesh()
-        .disable_x_mesh()
-        .disable_x_axis()
-        .axis_style(ruler.stroke_width(0))
-        .bold_line_style(ruler)
-        .set_all_tick_mark_size(1)
-        .x_desc(time_desc)
-        .draw()?;
-
-        plot.draw_series(
-            LineSeries::new(
-                fridges,
-                fridgeblue.stroke_width(3),
-            )
-        )?;
-        plot.draw_series(
-            LineSeries::new(
-                worts,
-                amber.stroke_width(3),
-            )
-        )?;
-    }
+    // take back 'out'
+    drop(plot);
+    drop(area);
     Ok(out)
 }
 

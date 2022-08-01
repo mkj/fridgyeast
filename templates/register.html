@@ -12,7 +12,7 @@
 <html>
 <body>
 <span id="mailauth"> <a href="mailto:{{email}}?Subject=Allow%20Templog&body=Hash%20is%0a{{cookie_hash}}">Email</a> </span>
-<p>Session id <code>{{cookie_hash}}</code></p>
+<p>Session id <br/><code>"{{cookie_hash}}",</code></p>
 {% if allowed %}
 <p>Is already allowed</p>
 {% else %}

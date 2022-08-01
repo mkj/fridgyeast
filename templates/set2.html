@@ -22,9 +22,6 @@
 
 <body>
 
-{% if testmode %}
-<i>Test Mode</i><br/>
-{% endif %}
 <div id="current_fridge">
 Wort {{ self.format_degrees(status.temp_wort) }}
 Fridge {{ self.format_degrees(status.temp_fridge) }}
@@ -69,22 +66,15 @@ Session id <code>{{cookie_hash}}</code>
 {% endif %}
 </span>
 
-{% if !allowed %} 
+{% if !allowed %}
 <span id="reload"> <a href=".">Reload</a></span>
 {% endif %}
 <div id="plot">
-
 {{svg|safe}}
+</div>
 
 {% if testmode %}
-<div>
-Worts
-</div>
-{% for w in self.worts %}
-<div>
-{{ "{:?}"|format(w) }}
-</div>
-{% endfor %}
+<i>Test Mode</i><br/>
 {% endif %}
 
 </body>
