@@ -18,7 +18,7 @@ use serde::{Serialize,Deserialize};
 use tide::utils::After;
 use tide::{Request,Response,StatusCode};
 
-use tide_acme::{AcmeConfig, TideRustlsExt, rustls_acme::caches::DirCache};
+use tide_acme::{AcmeConfig, TideRustlsExt};
 use tide::listener::Listener;
 
 use plotters::prelude::*;
@@ -372,9 +372,6 @@ fn until_2038() -> Duration {
 async fn listen_test(server: tide::Server<WebState>, 
     _config: &'static Config, 
     addrs: Vec<std::net::SocketAddr>) -> Result<()> {
-    for a in &addrs {
-        info!("Listening on http://{}", a);
-    }
     let mut listener = server.bind(addrs).await.context("binding web server failed")?;
     listener.accept().await.context("web server failed")?;
     Ok(())
@@ -386,10 +383,11 @@ async fn listen_ssl(server: tide::Server<WebState>,
     let conf = tide_rustls::TlsListener::build()
             .addrs(&*addrs)
             .acme(
-                AcmeConfig::new(&config.ssl_domain)
-                .cache(DirCache::new(&config.params_dir))
-                .contact_push(&config.owner_email)
-                .directory_lets_encrypt(true)
+                AcmeConfig::new()
+                .domains(config.ssl_domain.clone())
+                .cache_dir(&config.params_dir)
+                .contact_email(&config.owner_email)
+                .production()
                 );
 
     let mut listener = server.bind(conf).await.context("binding web server failed")?;
