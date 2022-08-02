@@ -93,7 +93,7 @@ impl TimeSeries {
 	/// _TODO_: also return one point prior the the window?
 	pub async fn get(&self, name: String, start: DateTime<Utc>) -> ActorResult<Seq> {
 		let r: Result<Seq> = self.db.db()
-		.prepare("select time, value from points where name = ? and time >= ?")?
+		.prepare("select time, value from points where name = ? and time >= ? order by time")?
 		.query_map(params![name, start.timestamp()], |r| {
 			let t = Self::int_to_time(r.get(0)?);
 			let v: f32 = r.get(1)?;
@@ -105,11 +105,21 @@ impl TimeSeries {
 	}
 
 	/// Returns points within the history window
-	/// _TODO_: also return one point prior the the window?
 	pub async fn get_step(&self, name: String, start: DateTime<Utc>) -> ActorResult<Seq> {
 		let d = self.db.db();
+
+		// one point prior to the the window
 		let mut p = d
-		.prepare("select time, value from step_points where name = ? and time >= ?")?;
+			.prepare("select time, value from step_points where name = ? and time < ? order by time desc limit 1")?;
+		let r1 = p.query_map(params![name, start.timestamp()], |r| {
+			let t = Self::int_to_time(r.get(0)?);
+			let v: f32 = r.get(1)?;
+			Ok((t, v))
+		})?
+
+		.map(|r| r.context("SQL query"));
+		let mut p = d
+			.prepare("select time, value from step_points where name = ? and time >= ? order by time")?;
 		let r = p.query_map(params![name, start.timestamp()], |r| {
 			let t = Self::int_to_time(r.get(0)?);
 			let v: f32 = r.get(1)?;
@@ -119,7 +129,7 @@ impl TimeSeries {
 
 		let mut prev = None;
 		let mut res = vec![];
-		for a in r {
+		for a in r1.chain(r) {
 			let a = a?;
 			if let Some(p) = prev {
 				res.push((a.0, p));
