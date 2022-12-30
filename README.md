@@ -32,4 +32,3 @@ Wort temperature control is an important matter!
 ### TODO
 
 * Try better temperature control algorithms, take account of fridge air temperature for overshoot
-* Pass through `/.well-known` for letsencrypt certbot (or find a rust acme crate that works with rustls and handle it internally)
