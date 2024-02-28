@@ -2492,6 +2492,8 @@ dependencies = [
 [[package]]
 name = "tide-rustls"
 version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a85b568b611840ba794ae749d4fa8b345b9f71a9c02b82cf0c28ff076fde6b7"
 dependencies = [
  "async-dup",
  "async-h1",

@@ -55,7 +55,3 @@ strip = true
 
 [profile.dev]
 debug = 0
-
-
-[patch.crates-io]
-tide-rustls = { path = "/home/matt/3rd/rs/tide-rustls" }
