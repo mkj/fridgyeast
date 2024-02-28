@@ -12,6 +12,8 @@ use rand::Rng;
 use async_std::task::{block_on,spawn_blocking};
 use async_std::sync::Mutex as AsyncMutex;
 
+use base64::Engine;
+
 /// Provides a SQLite in-memory database that is automatically loaded/saved to a
 /// backing database on disk.
 pub struct RusqlMem {
@@ -29,8 +31,7 @@ impl RusqlMem {
 	/// should not commit the transaction, `RusqlMem` will handle it.
 	pub fn new(p: &std::path::Path, init_schema: fn(&mut rusqlite::Transaction)
 		-> Result<()>) -> Result<Self> {
-		let nonce = base64::encode_config(rand::thread_rng().gen::<[u8; 18]>(),
-			base64::URL_SAFE);
+		let nonce = base64::engine::general_purpose::URL_SAFE.encode(rand::thread_rng().gen::<[u8; 18]>());
 		// The in-memory database has a unique name within this RusqlMem instance
 		let mem_path = format!("file::{}?mode=memory&cache=shared", nonce).into();
 		let memdb = Connection::open(&mem_path)?;

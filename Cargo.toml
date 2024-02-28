@@ -10,37 +10,39 @@ argh = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rand = "0.8"
-atomicwrites = "0.3"
+atomicwrites = "0.4"
 log = "0.4"
-simplelog = "0.11"
+
+simplelog = "0.12"
+# simplelog needs it for format_description
+time = "0.3"
 
 futures = "0.3"
 signal-hook = "0.3"
 async-std = { version = "1.9", features = ["attributes"] }
 async-trait = "0.1"
-async-io = "1.1"
+async-io = "2.3"
 
 chrono = "0.4"
-base64 = "0.13"
+base64 = "0.21"
 
 act-zero = { version = "0.4", features = ["async-std"] }
 
-# outdated, new version changes API
-config = { version = "0.12", features = ["toml"], default-features = false }
+config = { version = "0.14", features = ["toml"], default-features = false }
 
 sysfs_gpio = "0.6"
 
-# tide must match version used in tide-rustls, so have strict versions here
+# tide must match version used in tide-rustls
 # don't want default logging feature
 tide = { version = "0.16", default-features = false, features = ["h1-server", "sessions"] }
 tide-rustls = "0.3.0"
-tide-compress = { version = "0.9", default-features = false, features = ["deflate"] }
-tide-acme = "0.1"
-askama_tide = "0.14"
+tide-compress = { version = "0.11", default-features = false, features = ["deflate"] }
+tide-acme = "0.2"
+askama_tide = "0.15"
 
-askama = { version = "0.11", features = ["serde-json", "with-tide"] }
+askama = { version = "0.12", features = ["serde-json", "with-tide"] }
 
-rusqlite = { version = "0.27", features = ["backup", "bundled"] }
+rusqlite = { version = "0.31", features = ["backup", "bundled"] }
 
 plotters = { version = "0.3", default-features = false, features = ["svg_backend", "datetime", "line_series", "point_series"] }
 plotters-svg = "0.3"
@@ -53,3 +55,6 @@ debug = 0
 [profile.dev]
 debug = 0
 
+
+[patch.crates-io]
+tide-rustls = { path = "/home/matt/3rd/rs/tide-rustls" }

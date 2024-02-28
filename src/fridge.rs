@@ -234,7 +234,7 @@ impl Fridge {
             fridge_delay: Duration::from_secs(self.config.fridge_delay),
             overshoot_interval: self.config.overshoot_interval,
             sensor_interval: self.config.sensor_interval,
-            version: get_hg_version(),
+            version: get_vcs_version(),
             uptime: Instant::now() - self.started,
         };
         Produces::ok(s)

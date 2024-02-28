@@ -4,7 +4,7 @@ use {
     anyhow::{Result,Context,bail,anyhow},
 };
 
-use simplelog::{CombinedLogger,LevelFilter,TermLogger,WriteLogger,TerminalMode,ColorChoice};
+use simplelog::{CombinedLogger,LevelFilter,TermLogger,WriteLogger,TerminalMode,ColorChoice,format_description};
 
 use act_zero::*;
 use async_std::io::ReadExt;
@@ -140,8 +140,8 @@ fn setup_log(debug: bool) -> Result<()> {
         false => LevelFilter::Info,
     };
     let logconf = simplelog::ConfigBuilder::new()
-    .set_time_format_str("%Y-%m-%d %H:%M:%S%.3f")
-    .set_time_to_local(true)
+    .set_time_format_custom(format_description!("[year]-[month]-[day] [hour]:[minute]:[second]:[subsecond digits:3]"))
+    .set_time_offset_to_local().expect("time offset")
     .build();
     CombinedLogger::init(
         vec![
@@ -171,7 +171,7 @@ fn handle_args() -> Result<Args> {
 
 fn main() -> Result<()> {
     let args = handle_args()?;
-    info!("fridgyeast hg version {}. pid {}", types::get_hg_version(), std::process::id());
+    info!("fridgyeast version {}. pid {}", types::get_vcs_version(), std::process::id());
 
     let e = run(&args).map_err(|e| {
         error!("Bad Exit: {:?}", e);

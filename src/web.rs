@@ -18,7 +18,7 @@ use serde::{Serialize,Deserialize};
 use tide::utils::After;
 use tide::{Request,Response,StatusCode};
 
-use tide_acme::{AcmeConfig, TideRustlsExt};
+use tide_acme::{AcmeConfig, TideRustlsExt, rustls_acme::caches::DirCache};
 use tide::listener::Listener;
 
 use plotters::prelude::*;
@@ -152,7 +152,7 @@ async fn handle_set(req: Request<WebState>) -> tide::Result {
     s.numinputs.push(NumInput::new("fridge_range_lower", "Lower range", "°", 1.0, 0));
     s.numinputs.push(NumInput::new("fridge_range_upper", "Upper range", "°", 1.0, 0));
 
-    let mut r = askama_tide::into_response(&s, "html");
+    let mut r = askama_tide::into_response(&s);
 
     // set a different samesite cookie for CSRF protection
     r.insert_cookie(tide::http::cookies::Cookie::build(CSRF_NAME, "yeah")
@@ -305,7 +305,7 @@ async fn handle_register(mut req: Request<WebState>) -> tide::Result {
         debug: s.config.debug,
         allowed,
     };
-    let r = askama_tide::into_response(&r, "html");
+    let r = askama_tide::into_response(&r);
     Ok(r)
 }
 
@@ -380,14 +380,14 @@ async fn listen_test(server: tide::Server<WebState>,
 async fn listen_ssl(server: tide::Server<WebState>, 
     config: &'static Config, 
     addrs: Vec<std::net::SocketAddr>) -> Result<()> {
+    let contact = format!("mailto:{}", config.owner_email);
     let conf = tide_rustls::TlsListener::build()
             .addrs(&*addrs)
             .acme(
-                AcmeConfig::new()
-                .domains(config.ssl_domain.clone())
-                .cache_dir(&config.params_dir)
-                .contact_email(&config.owner_email)
-                .production()
+                AcmeConfig::new(config.ssl_domain.clone())
+                .cache(DirCache::new(&config.params_dir))
+                .contact_push(contact)
+                .directory_lets_encrypt(true)
                 );
 
     let mut listener = server.bind(conf).await.context("binding web server failed")?;

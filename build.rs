@@ -4,16 +4,17 @@ use std::fs;
 use std::path::Path;
 
 fn main() {
-    let revid = Command::new("hg").args(&["id", "-i"])
-    .output()
-    .map(|o| String::from_utf8(o.stdout).unwrap().trim().to_string())
-    .unwrap_or("(no hg revid)".trim().to_string());
-
-    let out_dir = env::var_os("OUT_DIR").unwrap();
-    let dest_path = Path::new(&out_dir).join("hg-revid.txt");
-    fs::write(
-        &dest_path,
-        revid).unwrap();
-    println!("cargo:rerun-if-changed=.hg");
+    git()
 }
 
+
+fn git() {
+    let git_rev = Command::new("git")
+        .args(["describe", "--always", "--tags", "--dirty=+"])
+        .output()
+        .map(|o| String::from_utf8(o.stdout).unwrap())
+        .unwrap_or("(unknown)".to_string());
+
+    println!("cargo:rustc-env=GIT_REV={git_rev}");
+    println!("cargo:rerun-if-changed=.git/HEAD");
+}
