@@ -51,6 +51,7 @@ plotters-svg = "0.3"
 opt-level = 'z'
 lto = "thin"
 debug = 0
+strip = true
 
 [profile.dev]
 debug = 0
