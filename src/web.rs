@@ -27,7 +27,6 @@ use plotters::coord::ranged1d::KeyPointHint;
 use crate::fridge;
 use crate::params::Params;
 use crate::types::DurationFormat;
-use crate::timeseries::Seq;
 
 #[derive(Clone)]
 struct WebState {

@@ -4,10 +4,9 @@ use {
     anyhow::{Result,Context,bail,anyhow},
 };
 
-use async_std::task::spawn;
 use async_trait::async_trait;
 use crate::actzero_pubsub::Subscriber;
-use std::time::{SystemTime,Duration,Instant};
+use std::time::{Duration,Instant};
 use std::thread;
 use async_std::task::block_on;
 
@@ -327,7 +326,7 @@ impl Fridge {
             let on_time = self.integrator.integrate().as_secs() as f32;
             let on_ratio = on_time / self.config.overshoot_interval as f32;
 
-            let overshoot = self.params.overshoot_factor as f32 * on_ratio;
+            let overshoot = self.params.overshoot_factor * on_ratio;
             debug!("on_percent {}, overshoot {}", on_ratio * 100.0, overshoot);
 
             let mut turn_off = false;

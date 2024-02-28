@@ -16,7 +16,7 @@ use async_std::task::block_on;
 
 use rusqlite::{OptionalExtension,params};
 
-use chrono::{NaiveDateTime,Duration,DateTime,offset::Utc};
+use chrono::{Duration,DateTime,offset::Utc};
 
 use crate::rusqlmem::RusqlMem;
 
@@ -76,7 +76,7 @@ impl TimeSeries {
 		let now = Utc::now().timestamp() as u64;
 		let oldval: Option<f32> = t.query_row(
 			"select value from step_points where name = ? and time <= ? order by time desc limit 1", params![name, now],
-			|r| Ok(r.get(0)?))
+			|r| r.get(0))
 			.optional()?;
 		println!("now {now} oldval {oldval:?} value {value}");
 		if let Some(ov) = oldval {
@@ -150,12 +150,8 @@ impl TimeSeries {
 		Produces::ok(())
 	}
 
-	fn time_to_int(time: DateTime<Utc>) -> i64 {
-		time.timestamp()
-	}
-
 	fn int_to_time(i: i64) -> DateTime<Utc> {
-		DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(i, 0), Utc)
+		DateTime::from_timestamp(i, 0).unwrap()
 	}
 
 	// TODO: keep the last point before as well

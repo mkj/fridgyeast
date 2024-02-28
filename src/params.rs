@@ -71,7 +71,7 @@ impl Params {
 
     pub fn save(&self, config: &Config) -> Result<()> {
         let params_file = config.params_dir.join(Params::FILENAME);
-        let af = atomicwrites::AtomicFile::new(&params_file, atomicwrites::AllowOverwrite);
+        let af = atomicwrites::AtomicFile::new(params_file, atomicwrites::AllowOverwrite);
         af.write(|mut f| {
             serde_json::ser::to_writer(&mut f, self)?;
             f.write_all(b"\n")
