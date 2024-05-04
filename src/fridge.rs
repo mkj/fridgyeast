@@ -28,9 +28,6 @@ use super::sensor;
 use super::timeseries::{TimeSeries,Seq};
 use super::types::*;
 
-#[derive(Debug,Clone)]
-pub struct GetStatus;
-
 #[derive(Debug,Clone,Serialize)]
 pub struct Status {
     pub params: Params,
@@ -145,8 +142,8 @@ impl Fridge {
 
         let timeseries = spawn_actor(TimeSeries::new(
             std::path::Path::new("fridgyeast.db"),
-            60,
-            chrono::Duration::days(60))?);
+            300,
+            chrono::Duration::days(2))?);
 
         let mut f = Fridge {
             config,
