@@ -14,4 +14,5 @@ fn git() {
 
     println!("cargo:rustc-env=GIT_REV={git_rev}");
     println!("cargo:rerun-if-changed=.git/HEAD");
+    println!("cargo:rerun-if-changed=.git/refs/heads/main");
 }
