@@ -60,7 +60,7 @@ input[type="text"], input[type="number"] {
 }
 
 input[type="button"].onbutton {
-    background: #ccc;
+    background: #9ad751;
 }
 
 input[type="button"].yesno {
