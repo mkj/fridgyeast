@@ -27,15 +27,19 @@ Wort {{ self.format_degrees(status.temp_wort) }}
 Fridge {{ self.format_degrees(status.temp_fridge) }}
 Fridge is 
 {% if status.on %}
-On
+on
 {% else %}
-Off
+off
  {% match recent_off_time %}
   {% when Some with (t) %}
-   (for {{ t }})
+   for {{ t }}
  {% when None %}
  {% endmatch %}
 {% endif %}
+</div>
+
+<div id="plot">
+{{svg|safe}}
 </div>
 
 <section id="paramlist">
@@ -69,9 +73,6 @@ Session id <code>{{cookie_hash}}</code>
 {% if !allowed %}
 <span id="reload"> <a href=".">Reload</a></span>
 {% endif %}
-<div id="plot">
-{{svg|safe}}
-</div>
 
 {% if testmode %}
 <i>Test Mode</i><br/>
