@@ -30,7 +30,7 @@ act-zero = { version = "0.4", features = ["async-std"] }
 
 config = { version = "0.14", features = ["toml"], default-features = false }
 
-sysfs_gpio = "0.6"
+gpio-cdev = "0.6"
 
 # tide must match version used in tide-rustls
 # don't want default logging feature

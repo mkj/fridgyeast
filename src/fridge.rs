@@ -7,7 +7,6 @@ use {
 use async_trait::async_trait;
 use crate::actzero_pubsub::Subscriber;
 use std::time::{Duration,Instant};
-use std::thread;
 use async_std::task::block_on;
 
 use act_zero::*;
@@ -15,7 +14,6 @@ use act_zero::runtimes::async_std::spawn_actor;
 use act_zero::runtimes::async_std::Timer;
 use act_zero::timer::Tick;
 
-use sysfs_gpio::{Direction, Pin};
 use serde::Serialize;
 use serde_json::ser::to_string_pretty;
 
@@ -70,7 +68,7 @@ pub struct Fridge {
 }
 
 enum FridgeOutput {
-    Gpio(Pin),
+    Gpio(gpio_cdev::LineHandle),
     Fake,
 }
 
@@ -240,21 +238,12 @@ impl Fridge {
         if config.testmode || config.dryrun {
             Ok(FridgeOutput::Fake)
         } else {
-            let pin = Pin::new(config.fridge_gpio_pin.into());
-            pin.export().context("Exporting fridge GPIO failed")?;
-            // there's a race between sysfs and udev, try for a while
-            for i in (0..10).rev() {
-                // Direction::Low is direction=out+value=0
-                if let Err(e) = pin.set_direction(Direction::Low)
-                        .context("Exporting fridge gpio failed") {
-                        if i == 0 {
-                            bail!(e);
-                        } else {
-                            thread::sleep(Duration::from_millis(500));
-                        }
-                }
-            }
-            Ok(FridgeOutput::Gpio(pin))
+            let mut chip = gpio_cdev::Chip::new("/dev/gpiochip0").context("gpiochip0 failed")?;
+            let pin = chip.get_line(config.fridge_gpio_pin)
+                .with_context(|| format!("gpio line {} failed", config.fridge_gpio_pin))?;
+            let output = pin.request(gpio_cdev::LineRequestFlags::OUTPUT, 0, "fridge")
+                .context("gpio output failed")?;
+            Ok(FridgeOutput::Gpio(output))
         }
     }
 
@@ -271,7 +260,7 @@ impl Fridge {
 
     /// Generally use turn_on()/turn_off() instead.
     fn turn(&mut self, on: bool) -> Result<()> {
-        match self.output {
+        match &self.output {
             FridgeOutput::Gpio(pin) => pin.set_value(on.into()).context("Couldn't change pin")?,
             FridgeOutput::Fake => debug!("fridge turns {}", if on {"on"} else {"off"}),
         }
