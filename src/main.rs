@@ -171,7 +171,10 @@ fn handle_args() -> Result<Args> {
 
 fn main() -> Result<()> {
     let args = handle_args()?;
-    info!("fridgyeast version {}. pid {}", types::get_vcs_version(), std::process::id());
+    info!("fridgyeast version {}. {}. pid {}",
+        types::get_vcs_version(),
+        types::get_rustc_version(),
+        std::process::id());
 
     let e = run(&args).map_err(|e| {
         error!("Bad Exit: {:?}", e);

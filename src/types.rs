@@ -188,3 +188,7 @@ mod tests {
 pub fn get_vcs_version() -> &'static str {
     env!("GIT_REV")
 }
+
+pub fn get_rustc_version() -> &'static str {
+    env!("RUSTC_VER")
+}
