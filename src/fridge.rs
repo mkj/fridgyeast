@@ -328,7 +328,7 @@ impl Fridge {
 
             let mut turn_off = false;
             // TODO: if let &&, then we can avoid unwrap
-            if self.temp_wort.is_some() && !self.params.nowort {
+            if self.temp_wort.is_some() && self.params.have_wort {
                 let t = self.temp_wort.unwrap();
                 // use the wort temperature
                 if t - overshoot < self.params.fridge_setpoint {
@@ -355,7 +355,7 @@ impl Fridge {
 
             // TODO can use if let Some(t) = ... && ...
             // once https://github.com/rust-lang/rust/issues/53667 is done
-            if self.temp_wort.is_some() && !self.params.nowort {
+            if self.temp_wort.is_some() && self.params.have_wort {
                 // use the wort temperature
                 let t = self.temp_wort.unwrap();
                 if t >= wort_max {

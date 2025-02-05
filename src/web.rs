@@ -144,9 +144,9 @@ async fn handle_set(req: Request<WebState>) -> tide::Result {
     };
 
     s.yesnoinputs.push(YesNoInput::new("running", "Running"));
-    s.yesnoinputs.push(YesNoInput::new("nowort", "No wort"));
+    s.yesnoinputs.push(YesNoInput::new("have_wort", "Wort"));
     s.numinputs.push(NumInput::new("fridge_setpoint", "Setpoint", "°", 0.1, 1));
-    s.numinputs.push(NumInput::new("fridge_difference", "Difference", "°", 0.1, 1));
+    // s.numinputs.push(NumInput::new("fridge_difference", "Difference", "°", 0.1, 1));
     s.numinputs.push(NumInput::new("overshoot_factor", "Inertia", "°", 0.1, 1));
     s.numinputs.push(NumInput::new("fridge_range_lower", "Lower range", "°", 1.0, 0));
     s.numinputs.push(NumInput::new("fridge_range_upper", "Upper range", "°", 1.0, 0));
