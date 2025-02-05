@@ -4,8 +4,10 @@
 fridge_delay = 600 # 10 mins to avoid fridge damage from frequent cycling off/on
 fridge_wort_invalid_time = 300 # 5 mins
 overshoot_interval = 3600 # 1 hour
+overshoot_factor = 0.1 # degrees per overshoot_delay
 
 sensor_base_dir = "/sys/devices/w1_bus_master1"
+# a line on gpiochip0
 fridge_gpio_pin = 17
 fridge_name = "28-0000042c6dbb"
 wort_name = "28-0000042cccc4"
