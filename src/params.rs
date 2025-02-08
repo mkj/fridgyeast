@@ -34,7 +34,7 @@ impl Params {
     pub fn defaults() -> Params {
         Params {
             fridge_setpoint: 18.0,
-            fridge_difference: 0.2,
+            fridge_difference: 0.1,
             running: false,
             use_wort: true,
             fridge_range_lower: 3.0,
