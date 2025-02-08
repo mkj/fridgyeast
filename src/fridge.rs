@@ -282,6 +282,7 @@ impl Fridge {
     /// Must be called after every state change.
     /// Turns the fridge off and on
     fn update(&mut self) {
+        // fridge_min/fridge_max are only used when wort is unavailable
         let fridge_min = self.params.fridge_setpoint - self.params.fridge_range_lower;
         let fridge_max = self.params.fridge_setpoint + self.params.fridge_range_upper;
         let wort_max = self.params.fridge_setpoint + self.params.fridge_difference;

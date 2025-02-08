@@ -39,7 +39,7 @@ impl Params {
             use_wort: true,
             fridge_range_lower: 3.0,
             fridge_range_upper: 3.0,
-            overshoot_factor: 0.1,
+            overshoot_factor: 0.2,
             }
     }
 
