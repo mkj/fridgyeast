@@ -1,32 +1,32 @@
 #[allow(unused_imports)]
 use {
-    log::{debug, error, info, warn,log},
-    anyhow::{Result,Context,bail,anyhow},
+    anyhow::{anyhow, bail, Context, Result},
+    log::{debug, error, info, log, warn},
 };
 
-use async_trait::async_trait;
 use crate::actzero_pubsub::Subscriber;
-use std::time::{Duration,Instant};
 use async_std::task::block_on;
+use async_trait::async_trait;
+use std::time::{Duration, Instant};
 
-use act_zero::*;
 use act_zero::runtimes::async_std::spawn_actor;
 use act_zero::runtimes::async_std::Timer;
 use act_zero::timer::Tick;
+use act_zero::*;
 
 use serde::Serialize;
 use serde_json::ser::to_string_pretty;
 
-use chrono::{DateTime,offset::Utc};
+use chrono::{offset::Utc, DateTime};
 
-use crate::params::Params;
 use super::config::Config;
+use crate::params::Params;
 
 use super::sensor;
-use super::timeseries::{TimeSeries,Seq};
+use super::timeseries::{Seq, TimeSeries};
 use super::types::*;
 
-#[derive(Debug,Clone,Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Status {
     pub params: Params,
     pub on: bool,
@@ -124,7 +124,8 @@ impl Actor for Fridge {
         // Start the timer going
         self.update();
         // Arbitrary 10 secs, enough to notice invalid wort or fridge delay
-        self.timer.set_interval_weak(addr.downgrade(), Duration::from_secs(10));
+        self.timer
+            .set_interval_weak(addr.downgrade(), Duration::from_secs(10));
         Produces::ok(())
     }
 
@@ -141,7 +142,8 @@ impl Fridge {
         let timeseries = spawn_actor(TimeSeries::new(
             std::path::Path::new("fridgyeast.db"),
             300,
-            chrono::Duration::days(2))?);
+            chrono::Duration::days(2),
+        )?);
 
         let mut f = Fridge {
             config,
@@ -172,7 +174,7 @@ impl Fridge {
     }
 
     pub async fn add_readings(&mut self, r: Readings) {
-        debug!("add_readings {:?}", r);
+        debug!("add_readings {r:?}");
         self.temp_wort = r.get_temp(&self.config.wort_name);
         self.temp_fridge = r.get_temp(&self.config.fridge_name);
 
@@ -202,18 +204,20 @@ impl Fridge {
     pub async fn set_params(&mut self, p: Params) -> ActorResult<Result<()>> {
         self.params = p;
         let pp = to_string_pretty(&self.params).unwrap_or("Failed serialising params".into());
-        info!("New params: {}", pp);
+        info!("New params: {pp}");
 
         // quickly update the fridge for real world interactivity
         self.update();
 
-        send!(self.timeseries.add_step("setpoint", self.params.fridge_setpoint));
+        send!(self
+            .timeseries
+            .add_step("setpoint", self.params.fridge_setpoint));
         send!(self.timeseries.save());
         let res = self.params.save(self.config);
 
         if let Err(e) = &res {
             // log it too
-            error!("Failed saving params: {}", e);
+            error!("Failed saving params: {e}");
         }
         Produces::ok(res)
     }
@@ -239,9 +243,11 @@ impl Fridge {
             Ok(FridgeOutput::Fake)
         } else {
             let mut chip = gpio_cdev::Chip::new("/dev/gpiochip0").context("gpiochip0 failed")?;
-            let pin = chip.get_line(config.fridge_gpio_pin)
+            let pin = chip
+                .get_line(config.fridge_gpio_pin)
                 .with_context(|| format!("gpio line {} failed", config.fridge_gpio_pin))?;
-            let output = pin.request(gpio_cdev::LineRequestFlags::OUTPUT, 0, "fridge")
+            let output = pin
+                .request(gpio_cdev::LineRequestFlags::OUTPUT, 0, "fridge")
                 .context("gpio output failed")?;
             Ok(FridgeOutput::Gpio(output))
         }
@@ -249,27 +255,31 @@ impl Fridge {
 
     fn turn_off(&mut self) {
         info!("Turning fridge off");
-        self.turn(false).unwrap_or_else(|e| error!("Turning off failed: {}", e));
+        if let Err(e) = self.turn(false) {
+            error!("Turning off failed: {e}");
+        }
         self.last_off_time = Instant::now();
     }
 
     fn turn_on(&mut self) {
         info!("Turning fridge on");
-        self.turn(true).unwrap_or_else(|e| error!("Turning on failed: {}", e));
+        if let Err(e) = self.turn(true) {
+            error!("Turning on failed: {e}")
+        }
     }
 
     /// Generally use turn_on()/turn_off() instead.
     fn turn(&mut self, on: bool) -> Result<()> {
         match &self.output {
             FridgeOutput::Gpio(pin) => pin.set_value(on.into()).context("Couldn't change pin")?,
-            FridgeOutput::Fake => debug!("fridge turns {}", if on {"on"} else {"off"}),
+            FridgeOutput::Fake => debug!("fridge turns {}", if on { "on" } else { "off" }),
         }
         self.on = on;
         self.integrator.turn(on);
         Ok(())
     }
 
-    /// Must be called after every state change. 
+    /// Must be called after every state change.
     /// Turns the fridge off and on
     fn update(&mut self) {
         let fridge_min = self.params.fridge_setpoint - self.params.fridge_range_lower;
@@ -304,73 +314,79 @@ impl Fridge {
         }
 
         if self.temp_fridge.is_none() {
-            self.often_badfridge.and_then(|| warn!("Invalid fridge sensor"));
+            self.often_badfridge
+                .and_then(|| warn!("Invalid fridge sensor"));
         }
 
         // The main decision
         if self.on {
             let on_time = self.integrator.integrate().as_secs() as f32;
             let on_ratio = on_time / self.config.overshoot_interval as f32;
-
             let overshoot = self.params.overshoot_factor * on_ratio;
             debug!("on_percent {}, overshoot {}", on_ratio * 100.0, overshoot);
 
-            let mut turn_off = false;
-            // TODO: if let &&, then we can avoid unwrap
-            if self.temp_wort.is_some() && self.params.have_wort {
-                let t = self.temp_wort.unwrap();
-                // use the wort temperature
-                if t - overshoot < self.params.fridge_setpoint {
-                    info!("Wort has cooled enough, {temp}° (overshoot {overshoot}°)",
-                         temp = t, overshoot = overshoot);
-                    turn_off = true;
-                }
-            } else if let Some(t) = self.temp_fridge {
-                // use the fridge temperature
-                if t < fridge_min {
-                    warn!("Fridge off fallback, fridge {}°, min {}°", t, fridge_min);
-                    if self.temp_wort.is_none() {
-                        warn!("Wort has been invalid for {:?}", Instant::now() - self.wort_valid_time);
+            match (self.temp_wort, self.temp_fridge) {
+                (Some(t), _) if self.params.use_wort => {
+                    if t - overshoot < self.params.fridge_setpoint {
+                        info!("Wort has cooled enough, {t}° (overshoot {overshoot}°)");
+                        self.turn_off();
                     }
-                    turn_off = true;
                 }
-            }
-            if turn_off {
-                self.turn_off();
+                (_, Some(t)) => {
+                    if t < fridge_min {
+                        warn!("Fridge off fallback, fridge {t}°, min {fridge_min}°");
+                        if self.temp_wort.is_none() {
+                            warn!(
+                                "Wort has been invalid for {:?}",
+                                Instant::now() - self.wort_valid_time
+                            );
+                        }
+                        self.turn_off();
+                    }
+                }
+                _ => (),
             }
         } else {
             // Also is the flag to turn it on.
             let mut turn_on_reason = None;
 
-            // TODO can use if let Some(t) = ... && ...
-            // once https://github.com/rust-lang/rust/issues/53667 is done
-            if self.temp_wort.is_some() && self.params.have_wort {
-                // use the wort temperature
-                let t = self.temp_wort.unwrap();
-                if t >= wort_max {
-                    turn_on_reason = Some((
-                        format!("Wort is too hot {}°, max {}°", t, wort_max),
-                        log::Level::Info));
+            match (self.temp_wort, self.temp_fridge) {
+                (Some(t), _) if self.params.use_wort => {
+                    if t >= wort_max {
+                        turn_on_reason = Some((
+                            format!("Wort is too hot {t}°, max {wort_max}°"),
+                            log::Level::Info,
+                        ));
+                    }
                 }
-            } else if let Some(t) = self.temp_fridge {
-                if t >= fridge_max {
-                    turn_on_reason = Some((
-                        format!("Fridge too hot fallback, fridge {}°, max {}°", t, fridge_max),
-                        log::Level::Warn));
+                (_, Some(t)) => {
+                    if t >= fridge_max {
+                        turn_on_reason = Some((
+                            format!("Fridge too hot fallback, fridge {t}°, max {fridge_max}°"),
+                            log::Level::Warn,
+                        ));
+                    }
                 }
+                _ => (),
             }
 
             if let Some((reason, loglevel)) = turn_on_reason {
                 // The fridge should turn on
 
+                // To avoid bad things happening to the fridge motor (?)
+                // When it turns off don't start up again for at least FRIDGE_DELAY
                 if off_duration < Duration::from_secs(self.config.fridge_delay) {
-                    // Safety to avoid bad things happening to the fridge motor (?)
-                    // When it turns off don't start up again for at least FRIDGE_DELAY
-                    self.often_tooearly.and_then(|| log!(loglevel, "{}, but fridge skipping, too early ({} seconds left)",
-                        reason, self.config.fridge_delay - off_duration.as_secs()));
+                    self.often_tooearly.and_then(|| {
+                        log!(
+                            loglevel,
+                            "{}, but fridge skipping, too early ({} seconds left)",
+                            reason,
+                            self.config.fridge_delay - off_duration.as_secs()
+                        )
+                    });
                 } else {
                     // Really turn on.
-                    log!(loglevel, "{}", &reason);
+                    log!(loglevel, "{reason}");
                     self.turn_on();
                 }
             }
