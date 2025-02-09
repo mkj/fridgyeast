@@ -19,7 +19,7 @@ time = "0.3"
 
 futures = "0.3"
 signal-hook = "0.3"
-async-std = { version = "1.9", features = ["attributes"] }
+async-std = { version = "1.9", default-features = false }
 async-trait = "0.1"
 async-io = "2.3"
 
@@ -28,7 +28,7 @@ base64 = "0.21"
 
 act-zero = { version = "0.4", features = ["async-std"] }
 
-config = { version = "0.14", features = ["toml"], default-features = false }
+config = { version = "0.15", features = ["toml"], default-features = false }
 
 gpio-cdev = "0.6"
 
@@ -38,9 +38,9 @@ tide = { version = "0.16", default-features = false, features = ["h1-server", "s
 tide-rustls = "0.3.0"
 tide-compress = { version = "0.11", default-features = false, features = ["deflate"] }
 tide-acme = "0.2"
-askama_tide = "0.15"
+askama_tide = { version = "0.15", default-features = false }
 
-askama = { version = "0.12", features = ["serde-json", "with-tide"] }
+askama = { version = "0.12", default-features = false, features = ["serde-json", "with-tide"] }
 
 rusqlite = { version = "0.31", features = ["backup", "bundled"] }
 
