@@ -24,7 +24,7 @@ async-trait = "0.1"
 async-io = "2.3"
 
 chrono = "0.4"
-base64 = "0.21"
+base64 = "0.22"
 
 act-zero = { version = "0.4", features = ["async-std"] }
 
@@ -42,7 +42,7 @@ askama_tide = { version = "0.15", default-features = false }
 
 askama = { version = "0.12", default-features = false, features = ["serde-json", "with-tide"] }
 
-rusqlite = { version = "0.31", features = ["backup", "bundled"] }
+rusqlite = { version = "0.33", features = ["backup", "bundled"] }
 
 plotters = { version = "0.3", default-features = false, features = ["svg_backend", "datetime", "line_series", "point_series"] }
 plotters-svg = "0.3"
