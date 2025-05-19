@@ -1,7 +1,7 @@
 #[allow(unused_imports)]
 use {
     log::{debug, error, info, warn},
-    anyhow::{anyhow,Result,Context},
+    anyhow::{anyhow,Result,Context,bail},
 };
 
 use async_trait::async_trait;
@@ -92,7 +92,12 @@ impl OneWireSensor {
         path.push(n);
         path.push("temperature");
         let s = read_to_string(path).await.context("Error reading w1 sensor")?;
-        Ok(f32::from_str(str::trim(&s)).context("Sensor reading isn't a number")? / 1000.)
+        let temp = f32::from_str(str::trim(&s)).context("Sensor reading isn't a number")? / 1000.;
+        // w1-gpio sometimes spuriously returns 85deg
+        if temp == 85. {
+            bail!("Invalid sensor 85°");
+        }
+        Ok(temp)
     }
 
     async fn sensor_names(&self) -> Result<Vec<String>> {
